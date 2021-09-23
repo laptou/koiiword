@@ -11,7 +11,8 @@
       "program": "${workspaceFolder}/_build/default/bin/main.bc",
       "stopOnEntry": false,
       "yieldSteps": 4096,
-      "onlyDebugGlob": "<${workspaceFolder}/**/*>"
+      "onlyDebugGlob": "<${workspaceFolder}/**/*>",
+      "preLaunchTask": "dune build"
     }
   ]
 }
