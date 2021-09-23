@@ -1,4 +1,5 @@
 (executable
  (public_name koiiword)
  (name main)
- (libraries koiiword base lambda-term))
+ (libraries koiiword base lambda-term)
+ (preprocess (pps lwt_ppx)))
