@@ -10,7 +10,7 @@ This project depends on the following libraries:
 
 They can be installed like this:
 ```bash
-opam install -y lwt lwt_ppx lambda-term
+opam install . --with-test
 ```
 
 This project is set up so that it can be debugged using Visual Studio Code. To
