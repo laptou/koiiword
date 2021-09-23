@@ -34,8 +34,8 @@ let rec loop ui coord =
   | LTerm_event.Key { code = Escape; _ } -> return ()
   | _ -> loop ui coord
 
-let draw ui matrix coord =
-  let size = LTerm_ui.size ui in
+let draw ui_terminal matrix coord =
+  let size = LTerm_ui.size ui_terminal in
   let ctx = LTerm_draw.context matrix size in
   LTerm_draw.clear ctx;
   LTerm_draw.draw_frame_labelled ctx
@@ -63,7 +63,7 @@ let main () =
   let coord = ref { row = 0; col = 0 } in
 
   let%lwt ui =
-    LTerm_ui.create term (fun matrix size -> draw matrix size !coord)
+    LTerm_ui.create term (fun ui_terminal matrix -> draw ui_terminal matrix !coord)
   in
   Lwt.finalize (fun () -> loop ui coord) (fun () -> LTerm_ui.quit ui)
 
