@@ -1,0 +1,4 @@
+(executable
+ (public_name koiiword)
+ (name main)
+ (libraries koiiword base lambda-term))
