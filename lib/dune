@@ -1,0 +1,3 @@
+(library
+ (name koiiword)
+ (libraries base lambda-term))
