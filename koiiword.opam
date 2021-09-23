@@ -5,6 +5,8 @@ synopsis: "Scrabble clone"
 maintainer: [ "Ibiyemi Abiodun <iaa34@cornell.edu>" "Owen Ralbovsky <oxr2@cornell.edu>" "Kyra Lee <kl627@cornell.edu>" "Isabella Wu <iw58@cornell.edu>" ]
 authors: [ "Ibiyemi Abiodun <iaa34@cornell.edu>" "Owen Ralbovsky <oxr2@cornell.edu>" "Kyra Lee <kl627@cornell.edu>" "Isabella Wu <iw58@cornell.edu>" ]
 license: "MIT"
+homepage: "https://github.com/laptou/koiiword"
+bug-reports: "https://github.com/laptou/koiiword"
 dev-repo: "git+https://github.com/laptou/koiiword"
 depends: [ "lwt" "lwt_ppx" "lambda-term" ]
 build: ["dune" "build" "-p" name "-j" jobs]
