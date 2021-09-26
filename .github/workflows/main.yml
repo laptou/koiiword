@@ -27,6 +27,7 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           dune-cache: true
+          cache-prefix: v2
 
       - run: opam install . --deps-only --with-test
 
