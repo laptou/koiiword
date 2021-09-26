@@ -20,10 +20,14 @@ let rec start_game = function
 
 (** [replenish_let] refills the letter generation data structure 
     when players use a letter. 
-    replenish_lst : letter_gen -> letter_gen *)
+    replenish_let : letter_gen -> letter_gen *)
 let rec replenish_let  = function
   | [] ->  start_game []
   | h :: t -> if h = '\000' then (random_let :: replenish_let t) else 
                 replenish_let t
 
-(** [remove_let] removes the appropriate letter when players use a letter *)
+(** [remove_let] removes the appropriate letter when players use a letter
+    remove_let : letter_gen -> char -> letter_gen  *)
+let rec remove_let letter = function 
+    | [] -> start_game []
+    | h :: t -> if h = letter then ('\000' :: t) else h :: (remove_let letter t)
