@@ -1,3 +1,3 @@
-(test
- (name koiiword)
- (libraries lwt lambda-term))
+(executable
+ (name main)
+ (libraries lwt lambda-term ounit2 koiiword))
