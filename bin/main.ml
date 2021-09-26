@@ -9,16 +9,23 @@
 
 open Lwt
 open LTerm_geom
+
 (* open LTerm_text *)
 open LTerm_key
 open Koiiword.Board
 open Koiiword.State
 
+(** The [loop_result] type describes the response of the gameplay loop
+    to an event. Currently, the game can respond by doing nothing
+    ([LoopResultContinue]), updating the gameplay state and re-rendering
+    ([LoopResultUpdateState]), or exiting ([LoopResultExit]) *)
 type loop_result =
   | LoopResultContinue
   | LoopResultUpdateState of game_state
   | LoopResultExit
 
+(** The game loop. This loop runs for as long as the game is running,
+    and changes the game's state in response to events. *)
 let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
@@ -50,6 +57,8 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
       loop ui game_state
   | LoopResultContinue -> loop ui game_state
 
+(** The renderer. This takes game state and a terminal UI object and
+    renders the game according to its current state. *)
 let draw ui_terminal matrix (game_state : game_state) =
   let size = LTerm_ui.size ui_terminal in
   let ctx = LTerm_draw.context matrix size in
@@ -76,7 +85,6 @@ let draw ui_terminal matrix (game_state : game_state) =
 let main () =
   let%lwt term = Lazy.force LTerm.stdout in
 
-  (* Coordinates of the message. *)
   let game_state : game_state ref =
     ref { board = { cursor = (0, 0) } }
   in
