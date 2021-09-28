@@ -1,3 +1,3 @@
-open Tile
-
-type board = tile option array array
+type board = {
+  cursor : int * int;
+}
