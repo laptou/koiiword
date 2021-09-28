@@ -7,16 +7,16 @@ type letter_deck = char list
 
 (** [random_let] is a randomly generated char from a-z. random_let :
     char*)
-let random_let bound = Random.int bound + 65 |> Char.chr
+let random_let () = Char.chr (Random.int 26 + 65)
 
 (** [start_game lst] is a letter_deck of 7 chars. Requires lst to be
     empty since it is the start of the game. start_game : unit ->
     letter_deck *)
 let rec start_game = function
-  | [] -> start_game [ random_let 26 ]
+  | [] -> start_game [ random_let () ]
   | h :: t ->
       if List.length t = 6 then h :: t
-      else start_game (h :: random_let 26 :: t)
+      else start_game (h :: random_let () :: t)
 
 (** [remove_let curr goal lst] removes the appropriate letter when
     players use a letter and refills it with a new random letter.
@@ -26,7 +26,7 @@ let rec start_game = function
 let rec remove_let curr goal = function
   | [] -> start_game []
   | h :: t ->
-      if curr = goal then random_let 26 :: t
+      if curr = goal then random_let () :: t
       else h :: remove_let (curr + 1) goal t
 
 (** [index_of_letter curr letter lst] is the index of the first
