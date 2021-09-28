@@ -1,32 +1,34 @@
-(** testing*)
 open OUnit2
+
 open GenerateLetters
+(** testing*)
 
-(** [char_to_string_list] is a string list representation of a char list*)
-let rec char_to_string_list = function 
-  | [] -> []
-  | h :: t -> (Char.escaped h) :: (char_to_string_list t)
 
-let pp_string s = "\"" ^ s ^ "\""  
+let rec all_letters = function
+  | [] -> true
+  | h :: t -> (
+      try Char.code h > 64 && Char.code h < 91 && all_letters t
+      with Invalid_argument "not a char" -> false)
 
-(** [pp_list pp_elt lst] pretty-prints list [lst], using [pp_elt] to
-    pretty-print each element of [lst]. TAKEN FROM A2*)
-let pp_list pp_elt lst =
-  let pp_elts lst =
-    let rec loop n acc = function
-      | [] -> acc
-      | [ h ] -> acc ^ pp_elt h
-      | h1 :: (_h2 :: _t as t') ->
-          if n = 100 then acc ^ "..."
-          else loop (n + 1) (acc ^ pp_elt h1 ^ "; ") t'
-    in
-    loop 0 "" lst
-  in
-  "[" ^ pp_elts lst ^ "]"
-  
-let starting_letters = start_game []
-let print_start = print_endline(pp_list pp_string (char_to_string_list starting_letters))
+let start_game_testlength (name : string) (deck : letter_deck) : test =
+  name >:: fun _ -> assert_equal true (List.length deck = 7)
 
-let start_game_test (name : string) : test = 
-  name >:: fun _ ->
-    assert_equal starting_letters starting_letters
+let start_game_testcontent (name : string) (deck : letter_deck) : test =
+  name >:: fun _ -> assert_equal true (all_letters deck)
+
+let temp_deck = start_game []
+
+let test_cases =
+  [
+    (** test start_game*)
+    start_game_testlength "start game creates list of length 7" temp_deck;
+    start_game_testcontent "start game creates list of letters A-Z" temp_deck;
+    (** test remove_let*)
+    start_game_testlength "start game creates list of length 7" temp_deck |> remove_let;
+    start_game_testcontent "start game creates list of letters A-Z" temp_deck |> remove_let;
+  ]
+
+let suite =
+  "test suite for generateLetters" >::: List.flatten [ test_cases ]
+
+let _ = run_test_tt_main suite
