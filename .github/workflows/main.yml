@@ -2,7 +2,11 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - main
   push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -14,7 +18,7 @@ jobs:
           - ubuntu-latest
           - windows-latest
         ocaml-compiler:
-          - 4.12.x
+          - 4.12.0
 
     runs-on: ${{ matrix.os }}
 
@@ -26,7 +30,7 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
-          dune-cache: true
+          cache-prefix: v3
 
       - run: opam install . --deps-only --with-test
 
