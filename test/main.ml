@@ -1,6 +1,5 @@
 open OUnit2
 
-open GenerateLetters
 (** testing*)
 
 
