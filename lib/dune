@@ -1,3 +1,4 @@
 (library
  (name koiiword)
+ (public_name koiiword)
  (libraries lwt lambda-term))
