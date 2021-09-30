@@ -37,3 +37,6 @@ let rec index_of_letter curr letter = function
   | [] -> raise (Failure "Empty List")
   | h :: t ->
       if h = letter then curr else index_of_letter (curr + 1) letter t
+
+(** used http://www.breakingthegame.net/leaves2 to generate accurate
+    probability rates for vowels and consonants*)

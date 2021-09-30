@@ -9,4 +9,4 @@ homepage: "https://github.com/laptou/koiiword"
 bug-reports: "https://github.com/laptou/koiiword"
 dev-repo: "git+https://github.com/laptou/koiiword"
 depends: [ "lwt" "lwt_ppx" "lambda-term" ]
-build: ["dune" "build" "-p" name "-j" jobs]
+build: ["dune" "build" "-p" name "-j" jobs ounit2 { with-test }]
