@@ -1,6 +1,7 @@
 (executable
- (public_name koiiword)
+ (public_name main)
  (name main)
  (libraries koiiword lwt lambda-term)
- (preprocess (pps lwt_ppx))
+ (preprocess
+  (pps lwt_ppx))
  (modes byte exe))
