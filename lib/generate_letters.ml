@@ -123,3 +123,19 @@ let optimize_start () =
   let n_vowels = num_vowels () in
   let n_conson = 7 - n_vowels in
   lst_of n_vowels [] vowels @ lst_of n_conson [] consonants
+
+(** [realistic_let] is a char, with a 19% chance of being a vowel. *)
+let realistic_let () =
+  if Random.int 26 < 5 then get_rand vowels else get_rand consonants
+
+(** [optimize_let curr goal lst] removes the appropriate letter when
+    players use a letter and refills it with a new letter. The letter
+    has a 19% chance of being a vowel. Requires curr to be the current
+    index as the function progresses (starting at 0) and goal to be the
+    index of the letter to be removed. remove_let : int -> int ->
+    letter_deck -> letter_deck *)
+let rec optimize_let curr goal = function
+  | [] -> start_game []
+  | h :: t ->
+      if curr = goal then realistic_let () :: t
+      else h :: remove_let (curr + 1) goal t
