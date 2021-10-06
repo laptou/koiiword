@@ -126,7 +126,7 @@ let main () =
   let%lwt term = Lazy.force LTerm.stdout in
 
   let game_state : game_state ref =
-    ref { board = { cursor = (0, 0); sel_letter = 0 } }
+    ref { board = { cursor = (0, 0) } }
   in
 
   let%lwt ui =
