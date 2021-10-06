@@ -71,8 +71,8 @@ let consonants =
 
 (* probability weights associated with each number of vowels in a
    starting hand. For implementer reference.*)
-let weights =
-  [ (0, 0.07); (1, 0.25); (2, 0.36); (3, 0.24); (4, 0.07); (5, 0.01) ]
+(**let weights =
+   [ (0, 0.07); (1, 0.25); (2, 0.36); (3, 0.24); (4, 0.07); (5, 0.01) ]*)
 
 (* alias table reference https://www.keithschwarz.com/darts-dice-coins/*)
 (* probability list needed for an alias table*)
