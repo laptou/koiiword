@@ -31,21 +31,33 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
   let { board } = current_state in
-  let { cursor } = board in
+  let { cursor; sel_letter } = board in
   let loop_result : loop_result =
     match evt with
     | LTerm_event.Key { code = Up; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor - 1, snd cursor) } }
+          {
+            board =
+              { cursor = (fst cursor - 1, snd cursor); sel_letter };
+          }
     | LTerm_event.Key { code = Down; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor + 1, snd cursor) } }
+          {
+            board =
+              { cursor = (fst cursor + 1, snd cursor); sel_letter };
+          }
     | LTerm_event.Key { code = Left; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor, snd cursor - 1) } }
+          {
+            board =
+              { cursor = (fst cursor, snd cursor - 1); sel_letter };
+          }
     | LTerm_event.Key { code = Right; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor, snd cursor + 1) } }
+          {
+            board =
+              { cursor = (fst cursor, snd cursor + 1); sel_letter };
+          }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | _ -> LoopResultContinue
   in
@@ -57,17 +69,57 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
       loop ui game_state
   | LoopResultContinue -> loop ui game_state
 
+let draw_main_boxes ctx dim title =
+  LTerm_draw.draw_frame_labelled ctx dim ~alignment:H_align_center
+    (Zed_string.of_utf8 title)
+    LTerm_draw.Light
+
 (** The renderer. This takes game state and a terminal UI object and
     renders the game according to its current state. *)
 let draw ui_terminal matrix (game_state : game_state) =
   let size = LTerm_ui.size ui_terminal in
   let ctx = LTerm_draw.context matrix size in
   LTerm_draw.clear ctx;
-  LTerm_draw.draw_frame_labelled ctx
-    { row1 = 0; col1 = 0; row2 = size.rows; col2 = size.cols }
-    ~alignment:H_align_center
-    (Zed_string.of_utf8 "koiiword")
-    LTerm_draw.Light;
+  draw_main_boxes ctx
+    {
+      row1 = 0;
+      col1 = size.cols * 4 / 20;
+      row2 = size.rows * 17 / 20;
+      col2 = size.cols;
+    }
+    "Koiiword";
+  draw_main_boxes ctx
+    {
+      row1 = 0;
+      col1 = 0;
+      row2 = size.rows * 8 / 20;
+      col2 = size.cols * 4 / 20;
+    }
+    "Players";
+  draw_main_boxes ctx
+    {
+      row1 = size.rows * 8 / 20;
+      col1 = 0;
+      row2 = size.rows;
+      col2 = size.cols * 4 / 20;
+    }
+    "Letters";
+  draw_main_boxes ctx
+    {
+      row1 = size.rows * 17 / 20;
+      col1 = size.cols * 13 / 20;
+      row2 = size.rows;
+      col2 = size.cols;
+    }
+    "Selection";
+  draw_main_boxes ctx
+    {
+      row1 = size.rows * 17 / 20;
+      col1 = size.cols * 4 / 20;
+      row2 = size.rows;
+      col2 = size.cols * 13 / 20;
+    }
+    "Instructions";
   if size.rows > 2 && size.cols > 2 then
     let ctx =
       LTerm_draw.sub ctx
@@ -86,7 +138,7 @@ let main () =
   let%lwt term = Lazy.force LTerm.stdout in
 
   let game_state : game_state ref =
-    ref { board = { cursor = (0, 0) } }
+    ref { board = { cursor = (0, 0); sel_letter = 0 } }
   in
 
   let%lwt ui =
