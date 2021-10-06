@@ -31,33 +31,21 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
   let { board } = current_state in
-  let { cursor; sel_letter } = board in
+  let { cursor } = board in
   let loop_result : loop_result =
     match evt with
     | LTerm_event.Key { code = Up; _ } ->
         LoopResultUpdateState
-          {
-            board =
-              { cursor = (fst cursor - 1, snd cursor); sel_letter };
-          }
+          { board = { cursor = (fst cursor - 1, snd cursor) } }
     | LTerm_event.Key { code = Down; _ } ->
         LoopResultUpdateState
-          {
-            board =
-              { cursor = (fst cursor + 1, snd cursor); sel_letter };
-          }
+          { board = { cursor = (fst cursor + 1, snd cursor) } }
     | LTerm_event.Key { code = Left; _ } ->
         LoopResultUpdateState
-          {
-            board =
-              { cursor = (fst cursor, snd cursor - 1); sel_letter };
-          }
+          { board = { cursor = (fst cursor, snd cursor - 1) } }
     | LTerm_event.Key { code = Right; _ } ->
         LoopResultUpdateState
-          {
-            board =
-              { cursor = (fst cursor, snd cursor + 1); sel_letter };
-          }
+          { board = { cursor = (fst cursor, snd cursor + 1) } }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | _ -> LoopResultContinue
   in
