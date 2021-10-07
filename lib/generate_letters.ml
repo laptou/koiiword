@@ -138,4 +138,4 @@ let rec optimize_let curr goal = function
   | [] -> start_game []
   | h :: t ->
       if curr = goal then realistic_let () :: t
-      else h :: remove_let (curr + 1) goal t
+      else h :: optimize_let (curr + 1) goal t
