@@ -69,18 +69,19 @@ let draw_board_gridlines ctx rect =
   in
   let width = rect.col2 - rect.col1 in
   let height = rect.row2 - rect.row1 in
-  let spacing = 2 in
+  let h_spacing = 3 in
+  let v_spacing = 2 in
   let style =
-    { LTerm_style.none with foreground = Some LTerm_style.green }
+    { LTerm_style.none with foreground = Some LTerm_style.lblue }
   in
 
   (* draw hlines *)
-  range rect.row1 rect.row2 spacing (fun row ->
+  range rect.row1 rect.row2 v_spacing (fun row ->
       LTerm_draw.draw_hline ctx row rect.col1 width ~style
         LTerm_draw.Light);
 
   (* draw vlines *)
-  range rect.col1 rect.col2 spacing (fun col ->
+  range rect.col1 rect.col2 h_spacing (fun col ->
       LTerm_draw.draw_vline ctx rect.row1 col height ~style
         LTerm_draw.Light)
 
@@ -121,7 +122,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (Zed_string.of_utf8 " koiiword ");
   if size.rows < 15 || size.cols < 30 then
     LTerm_draw.draw_string_aligned ctx (size.rows / 2) H_align_center
-      (Zed_string.of_utf8 "please make your terminal bigger")
+      (Zed_string.of_utf8 "please make \n your terminal bigger")
   else
     let rect =
       { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
@@ -135,11 +136,12 @@ let draw ui_terminal matrix (game_state : game_state) =
         draw_board_gridlines ctx (inset bounds 1);
         let cursor_ctx = LTerm_draw.sub ctx (inset bounds 1) in
         let row, col = game_state.board.cursor in
-        LTerm_draw.draw_char cursor_ctx
-          ((row * 2) + 1)
-          ((col * 2) + 1)
-          ~style:{ LTerm_style.none with reverse = Some true }
-          (Zed_char.of_utf8 "*"));
+        let row, col = ((row * 2) + 1, (col * 3) + 1) in
+        let style = { LTerm_style.none with reverse = Some true } in
+        LTerm_draw.set_style (LTerm_draw.point cursor_ctx row col) style;
+        LTerm_draw.set_style
+          (LTerm_draw.point cursor_ctx row (col + 1))
+          style);
     (* draw players box *)
     with_grid_cell ctx layout_spec 0 1 0 1 (fun ctx bounds ->
         LTerm_draw.draw_frame_labelled ctx bounds
