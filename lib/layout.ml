@@ -1,10 +1,18 @@
 open LTerm_geom
 
+(* A grid layout spec is a list of all of the dividing lines in a
+   grid-based layout. each dividing line is represented as a float,
+   which is the fraction of the width / height that this dividing line
+   is placed from the left / top. *)
 type grid_layout_spec = {
   rows : float list;
   cols : float list;
 }
 
+(* [get_grid_rect] will return the rectangle that a given grid cell or
+   group of grid cells (as specified by [row_start row_span col_start
+   col_span]) would occupy given that the entire grid occupies the
+   rectangle specified by [bounds]. *)
 let get_grid_rect
     (bounds : rect)
     (layout_spec : grid_layout_spec)
@@ -31,13 +39,19 @@ let get_grid_rect
   let bounds_width = float_of_int (bounds.col2 - bounds.col1) in
   let bounds_height = float_of_int (bounds.row2 - bounds.row1) in
   {
-    row1 = bounds.row1 + int_of_float (start_row_breakpoint *. bounds_height);
-    row2 = bounds.row1 + int_of_float (end_row_breakpoint *. bounds_height);
-    col1 = bounds.col1 + int_of_float (start_col_breakpoint *. bounds_width);
-    col2 = bounds.col1 + int_of_float (end_col_breakpoint *. bounds_width);
+    row1 =
+      bounds.row1 + int_of_float (start_row_breakpoint *. bounds_height);
+    row2 =
+      bounds.row1 + int_of_float (end_row_breakpoint *. bounds_height);
+    col1 =
+      bounds.col1 + int_of_float (start_col_breakpoint *. bounds_width);
+    col2 =
+      bounds.col1 + int_of_float (end_col_breakpoint *. bounds_width);
   }
 
-let inset rect x: rect =
+(* [inset rect x] returns a new rectangle where each edge has been moved
+   inwards by [x] units. *)
+let inset rect x : rect =
   {
     row1 = rect.row1 + x;
     row2 = rect.row2 - x;
