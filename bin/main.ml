@@ -87,8 +87,12 @@ let draw_board_gridlines ctx =
 let draw_board_cursor ctx (row, col) =
   let row, col = ((row * 2) + 1, (col * 3) + 1) in
   let style = { LTerm_style.none with reverse = Some true } in
-  LTerm_draw.set_style (LTerm_draw.point ctx row col) style;
-  LTerm_draw.set_style (LTerm_draw.point ctx row (col + 1)) style
+  try
+    LTerm_draw.set_style (LTerm_draw.point ctx row col) style;
+    LTerm_draw.set_style (LTerm_draw.point ctx row (col + 1)) style
+  with
+  | LTerm_draw.Out_of_bounds -> ()
+  | exn -> raise exn
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
