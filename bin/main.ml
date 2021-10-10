@@ -110,7 +110,7 @@ let rec add_letters ctx lst =
   | h :: t ->
       if add_letters ctx t = () then
         LTerm_draw.draw_string_aligned ctx
-          ((7 - List.length t) * (ctx_size.rows / 7))
+          ((7 - List.length t) * (ctx_size.rows / 8))
           H_align_center
           (Zed_string.of_utf8 (String.make 1 h))
       else ()
