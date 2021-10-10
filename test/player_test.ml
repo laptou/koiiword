@@ -23,6 +23,7 @@ let test_cases =
       "[player1; player2; player3] becomes [player2; player3; player1]"
       [ player1; player2; player3 ]
       [ player2; player3; player1 ];
+    update_player_list_test "[] becomes []" [] [];
   ]
 
 let suite = "test suite for Players" >::: test_cases
