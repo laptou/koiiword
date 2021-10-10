@@ -18,13 +18,6 @@ val start_game : unit -> char list
   letter to be removed. *)
 val replace_let_biased : int -> letter_deck -> letter_deck
 
-(* [start_game_deprecated lst] is a letter_deck of 7 random chars, with
-   no probabilities baked in. Requires lst to be empty since it is the
-   start of the game. start_game : unit \-> letter_deck *)
-val start_game_deprecated : char list -> char list
-
-val remove_let_deprecated : int -> int -> letter_deck -> letter_deck
-
 val index_of_letter : int -> char -> letter_deck -> int
 
 val random_let : unit -> char

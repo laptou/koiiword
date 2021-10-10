@@ -61,21 +61,20 @@ let get_random_item lst =
   let ind = Random.int (List.length lst) in
   index_item 0 ind lst
 
-(** [inner_match_probability prob accum lst] is a helper for
-    [match_probability]. Requires [accum] = 0*)
-let rec inner_match_probability prob accum lst =
-  match lst with
-  | [] -> []
-  | (p, ls) :: t ->
-      let curr_prob = accum +. p in
-      if prob <= curr_prob then ls
-      else inner_match_probability prob curr_prob t
-
-(** [match_probability prob lst] is the list of values in [lst] given
-    probability [prob]. Requires [prob] < 100 and [lst] to be a (float *
-    char list) association list representing (probability * value list)
-    tuples.*)
-let match_probability prob lst = inner_match_probability prob 0.0 lst
+(** [match_probability prob lst] is a list of values from association
+    list [lst] whose key satisfies the probability [prob]. Requires
+    [prob] < 100 and [lst] to be a (float * char list) association list
+    representing (probability * value list) tuples.*)
+let match_probability prob lst =
+  let rec inner_match_probability prob accum lst =
+    match lst with
+    | [] -> []
+    | (p, ls) :: t ->
+        let curr_prob = accum +. p in
+        if prob <= curr_prob then ls
+        else inner_match_probability prob curr_prob t
+  in
+  inner_match_probability prob 0.0 lst
 
 (** [get_random_letter assoc] is a letter chosen using accurate
     probabilities from association list [assoc]*)
@@ -84,22 +83,21 @@ let get_random_letter assoc =
   let letter_list = match_probability rand_pick assoc in
   get_random_item letter_list
 
-(** [inner_random_letters size assoc_ls lst] is a list of size [size]
-    using the values and probabilities in [assoc_ls]. Requires [lst] to
-    be empty upon application. Helper for [random_letters].*)
-let rec inner_random_letters size assoc_ls lst =
-  match lst with
-  | [] ->
-      inner_random_letters size assoc_ls [ get_random_letter assoc_ls ]
-  | h :: t ->
-      if List.length t = size - 1 then h :: t
-      else
-        inner_random_letters size assoc_ls
-          (h :: get_random_letter assoc_ls :: t)
-
 (** [random_letters size assoc] is a list of size [size] filled with
     letters by accurate probability metrics from [assoc]*)
-let rec random_letters size assoc = inner_random_letters size assoc []
+let random_letters size assoc =
+  let rec inner_random_letters size assoc_ls lst =
+    match lst with
+    | [] ->
+        inner_random_letters size assoc_ls
+          [ get_random_letter assoc_ls ]
+    | h :: t ->
+        if List.length t = size - 1 then h :: t
+        else
+          inner_random_letters size assoc_ls
+            (h :: get_random_letter assoc_ls :: t)
+  in
+  inner_random_letters size assoc []
 
 (** [num_vowels] is the number of vowels a player's starting hand based
     on a series of probabilities.*)
@@ -124,56 +122,32 @@ let realistic_let () =
     index_item 0 0 (random_letters 1 vowel_amounts)
   else index_item 0 0 (random_letters 1 consonant_amounts)
 
-(** [inner_let_biased curr goal lst] removes the appropriate letter when
-    players use a letter and refills it with a new letter. The letter
-    has a 19% chance of being a vowel. Requires curr to be the current
-    position (starting at 0) goal to be the index of the letter to be
-    removed. Helper for [replace_let_biased]*)
-let rec inner_let_biased curr goal = function
-  | [] -> start_game ()
-  | h :: t ->
-      if curr = goal then realistic_let () :: t
-      else h :: inner_let_biased (curr + 1) goal t
-
 (** [replace_let_biased goal lst] removes the appropriate letter when
     players use a letter and refills it with a new letter. The letter
     has a 19% chance of being a vowel. Requires goal to be the index of
     the letter to be removed. *)
-let rec replace_let_biased goal lst = inner_let_biased 0 goal lst
-
-(** [inner_random_items size lst repo] is a list of size [size] of
-    elements from [repo]. Helper for [random_items]*)
-let rec inner_random_items size lst repo =
-  match lst with
-  | [] -> inner_random_items size [ get_random_item repo ] repo
-  | h :: t ->
-      if List.length t = size - 1 then h :: t
-      else inner_random_items size (h :: get_random_item repo :: t) repo
+let replace_let_biased goal lst =
+  let rec inner_let_biased curr goal = function
+    | [] -> start_game ()
+    | h :: t ->
+        if curr = goal then realistic_let () :: t
+        else h :: inner_let_biased (curr + 1) goal t
+  in
+  inner_let_biased 0 goal lst
 
 (** [random_items size repo] is a list of size [size] of elements from
     [repo].*)
-let rec random_items size repo = inner_random_items size [] repo
+let random_items size repo =
+  let rec inner_random_items size lst repo =
+    match lst with
+    | [] -> inner_random_items size [ get_random_item repo ] repo
+    | h :: t ->
+        if List.length t = size - 1 then h :: t
+        else
+          inner_random_items size (h :: get_random_item repo :: t) repo
+  in
+  inner_random_items size [] repo
 
 (** [random_let] is a randomly generated char from a-z. random_let :
     char*)
 let random_let () = Char.chr (Random.int 26 + 65)
-
-(** [start_game_deprecated lst] is a letter_deck of 7 chars. Requires
-    lst to be empty since it is the start of the game. start_game : unit
-    \-> letter_deck *)
-let rec start_game_deprecated = function
-  | [] -> start_game_deprecated [ random_let () ]
-  | h :: t ->
-      if List.length t = 6 then h :: t
-      else start_game_deprecated (h :: random_let () :: t)
-
-(** [remove_let_deprecated curr goal lst] removes the appropriate letter
-    when players use a letter and refills it with a new random letter.
-    Requires curr to be the current index as the function progresses
-    (starting at 0) and goal to be the index of the letter to be
-    removed. remove_let : int -> int -> letter_deck -> letter_deck *)
-let rec remove_let_deprecated curr goal = function
-  | [] -> start_game_deprecated []
-  | h :: t ->
-      if curr = goal then random_let () :: t
-      else h :: remove_let_deprecated (curr + 1) goal t
