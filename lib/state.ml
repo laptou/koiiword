@@ -3,5 +3,5 @@ open Player
 
 type game_state = {
   board : board;
-  player_list : player list;
+  players : player list;
 }

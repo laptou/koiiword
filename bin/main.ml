@@ -32,7 +32,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; player_list } = current_state in
+  let { board; players } = current_state in
   let { cursor } = board in
   let loop_result : loop_result =
     match evt with
@@ -62,10 +62,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
           }
     | LTerm_event.Key { code = Enter; _ } ->
         LoopResultUpdateState
-          {
-            current_state with
-            player_list = update_player_list player_list;
-          }
+          { current_state with players = advance_players players }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
@@ -172,6 +169,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     in
     let ctx = LTerm_draw.sub ctx rect in
     (* draw board *)
+    let current_player = List.hd game_state.players in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
@@ -183,8 +181,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
-     ();
-     draw_letters ctx (List.hd game_state.player_list).letters);
+     draw_letters ctx current_player.letters);
     (* draw prompt box *)
     (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
      let _ = with_frame ctx "" LTerm_draw.Heavy in
@@ -203,7 +200,7 @@ let main () =
   let%lwt term = Lazy.force LTerm.stdout in
 
   let game_state : game_state ref =
-    ref { board = { cursor = (0, 0) }; player_list = player_lst }
+    ref { board = { cursor = (0, 0) }; players = player_lst }
   in
 
   let%lwt ui =

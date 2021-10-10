@@ -2,12 +2,12 @@ open OUnit2
 open Koiiword.Player
 open Koiiword.Generate_letters
 
-let update_player_list_test
+let advance_players_test
     (name : string)
     (player_lst : player list)
     (expected_player_list : player list) : test =
   name >:: fun _ ->
-  assert_equal (update_player_list player_lst) expected_player_list
+  assert_equal (advance_players player_lst) expected_player_list
 
 let player1 = { letters = start_game [] }
 
@@ -19,11 +19,11 @@ let player_lst = [ player1; player2; player3 ]
 
 let test_cases =
   [
-    update_player_list_test
+    advance_players_test
       "[player1; player2; player3] becomes [player2; player3; player1]"
       [ player1; player2; player3 ]
       [ player2; player3; player1 ];
-    update_player_list_test "[] becomes []" [] [];
+    advance_players_test "[] becomes []" [] [];
   ]
 
 let suite = "test suite for Players" >::: test_cases
