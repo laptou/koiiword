@@ -2,12 +2,6 @@ open OUnit2
 open Koiiword.Player
 open Koiiword.Generate_letters
 
-let rec all_letters = function
-  | [] -> true
-  | h :: t -> (
-      try Char.code h > 64 && Char.code h < 91 && all_letters t
-      with Invalid_argument _ -> false)
-
 let next_player_test
     (name : string)
     (cur_player : player)
