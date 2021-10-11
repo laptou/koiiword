@@ -1,8 +1,3 @@
-(* letter_deck is a list containing 7 random chars at any time. To be
-   used in a game of scrabble. If the char has been used in the game, a
-   new char will take its place, so there will never be an empty index.
-   Requires each char in the list to be an alphabetical letter at any
-   given time. *)
 type letter_deck = char list
 
 (** [index_of_letter curr letter lst] is the index of the first
@@ -111,6 +106,7 @@ let num_vowels () =
     combinations. Probabilities for vowel/consonant frequency determined
     using http://www.breakingthegame.net/leaves2 *)
 let start_game () =
+  Random.self_init ();
   let n_vowels = num_vowels () in
   let n_conson = 7 - n_vowels in
   random_letters n_vowels vowel_amounts
