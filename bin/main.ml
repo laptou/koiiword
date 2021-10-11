@@ -13,6 +13,8 @@ open LTerm_key
 open Koiiword.Board
 open Koiiword.State
 open Koiiword.Layout
+open Koiiword.Generate_letters
+open Koiiword.Player
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -30,22 +32,37 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board } = current_state in
+  let { board; players } = current_state in
   let { cursor } = board in
   let loop_result : loop_result =
     match evt with
     | LTerm_event.Key { code = Up; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor - 1, snd cursor) } }
+          {
+            current_state with
+            board = { cursor = (fst cursor - 1, snd cursor) };
+          }
     | LTerm_event.Key { code = Down; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor + 1, snd cursor) } }
+          {
+            current_state with
+            board = { cursor = (fst cursor + 1, snd cursor) };
+          }
     | LTerm_event.Key { code = Left; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor, snd cursor - 1) } }
+          {
+            current_state with
+            board = { cursor = (fst cursor, snd cursor - 1) };
+          }
     | LTerm_event.Key { code = Right; _ } ->
         LoopResultUpdateState
-          { board = { cursor = (fst cursor, snd cursor + 1) } }
+          {
+            current_state with
+            board = { cursor = (fst cursor, snd cursor + 1) };
+          }
+    | LTerm_event.Key { code = Enter; _ } ->
+        LoopResultUpdateState
+          { current_state with players = advance_players players }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
@@ -83,6 +100,19 @@ let draw_board_gridlines ctx =
   (* draw vlines *)
   range 0 width h_spacing (fun col ->
       LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light)
+
+(* draw letters to letter box given a player's letter [lst] *)
+let rec draw_letters ctx lst =
+  let ctx_size = LTerm_draw.size ctx in
+  match lst with
+  | [] -> ()
+  | h :: t ->
+      if draw_letters ctx t = () then
+        LTerm_draw.draw_string_aligned ctx
+          ((7 - List.length t) * (ctx_size.rows / 8))
+          H_align_center
+          (Zed_string.of_utf8 (String.make 1 h))
+      else ()
 
 let draw_board_cursor ctx (row, col) =
   let row, col = ((row * 2) + 1, (col * 3) + 1) in
@@ -139,6 +169,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     in
     let ctx = LTerm_draw.sub ctx rect in
     (* draw board *)
+    let current_player = List.hd game_state.players in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
@@ -150,7 +181,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
-     ());
+     draw_letters ctx current_player.letters);
     (* draw prompt box *)
     (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
      let _ = with_frame ctx "" LTerm_draw.Heavy in
@@ -161,10 +192,15 @@ let draw ui_terminal matrix (game_state : game_state) =
     ()
 
 let main () =
+  (* Define players *)
+  let player1 = { letters = start_game [] } in
+  let player2 = { letters = start_game [] } in
+  let player_lst = [ player2; player1 ] in
+
   let%lwt term = Lazy.force LTerm.stdout in
 
   let game_state : game_state ref =
-    ref { board = { cursor = (0, 0) } }
+    ref { board = { cursor = (0, 0) }; players = player_lst }
   in
 
   let%lwt ui =
