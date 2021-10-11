@@ -131,19 +131,6 @@ let replace_let_biased goal lst =
   in
   inner_let_biased 0 goal lst
 
-(** [random_items size repo] is a list of size [size] of elements from
-    [repo].*)
-let random_items size repo =
-  let rec inner_random_items size lst repo =
-    match lst with
-    | [] -> inner_random_items size [ get_random_item repo ] repo
-    | h :: t ->
-        if List.length t = size - 1 then h :: t
-        else
-          inner_random_items size (h :: get_random_item repo :: t) repo
-  in
-  inner_random_items size [] repo
-
 (** [random_let] is a randomly generated char from a-z. random_let :
     char*)
 let random_let () = Char.chr (Random.int 26 + 65)
