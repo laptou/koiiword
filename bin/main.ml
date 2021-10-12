@@ -114,6 +114,14 @@ let rec draw_letters ctx lst =
           (Zed_string.of_utf8 (String.make 1 h))
       else ()
 
+let draw_players ctx player =
+  let name_points =
+    String.concat " : " [ player.name; string_of_int player.points ]
+  in
+  let ctx_size = LTerm_draw.size ctx in
+  LTerm_draw.draw_string_aligned ctx (ctx_size.rows / 8) H_align_center
+    (Zed_string.of_utf8 name_points)
+
 let draw_board_cursor ctx (row, col) =
   let row, col = ((row * 2) + 1, (col * 3) + 1) in
   let style = { LTerm_style.none with reverse = Some true } in
@@ -177,7 +185,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     ());
+     draw_players ctx current_player);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
@@ -193,8 +201,8 @@ let draw ui_terminal matrix (game_state : game_state) =
 
 let main () =
   (* Define players *)
-  let player1 = { letters = start_game [] } in
-  let player2 = { letters = start_game [] } in
+  let player1 = { name = "P1"; points = 50; letters = start_game [] } in
+  let player2 = { name = "P2"; points = 30; letters = start_game [] } in
   let player_lst = [ player2; player1 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
