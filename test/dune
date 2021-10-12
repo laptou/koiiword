@@ -1,3 +1,6 @@
 (executable
  (name main)
  (libraries lwt ounit2 koiiword))
+(rule
+ (alias  runtest)
+ (action (run ./main.exe)))
