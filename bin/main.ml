@@ -114,16 +114,18 @@ let rec draw_letters ctx lst =
           (Zed_string.of_utf8 (String.make 1 h))
       else ()
 
-let rec draw_players ctx = function
+(* draw players to players box given a list of game_state.players *)
+let rec draw_players ctx num_players = function
   | [] -> ()
   | h :: t ->
-      if draw_players ctx t = () then
+      if draw_players ctx num_players t = () then
         let name_points =
           String.concat " : " [ h.name; string_of_int h.points ]
         in
         let ctx_size = LTerm_draw.size ctx in
         LTerm_draw.draw_string_aligned ctx
-          ((4 - List.length t) * (ctx_size.rows / 8))
+          ((num_players - List.length t)
+          * (ctx_size.rows / (num_players + 1)))
           H_align_center
           (Zed_string.of_utf8 name_points)
       else ()
@@ -182,8 +184,9 @@ let draw ui_terminal matrix (game_state : game_state) =
       { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
     in
     let ctx = LTerm_draw.sub ctx rect in
+    let players = game_state.players in
     (* draw board *)
-    let current_player = List.hd game_state.players in
+    let current_player = List.hd players in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
@@ -191,7 +194,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     draw_players ctx game_state.players);
+     draw_players ctx (List.length players) players);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
