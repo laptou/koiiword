@@ -226,7 +226,7 @@ let main () =
   let player2 = { name = "P2"; points = 30; letters = start_game () } in
   let player3 = { name = "P3"; points = 30; letters = start_game () } in
   let player4 = { name = "P4"; points = 30; letters = start_game () } in
-  let player_lst = [ player2; player1; player3; player4 ] in
+  let player_lst = [ player1; player2; player3; player4 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
 
