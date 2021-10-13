@@ -119,26 +119,30 @@ let rec draw_letters ctx lst =
 
 (** [player_display player curr] is the string assigned to that player
     to be displayed in the box*)
-let player_display player curr =
-  let name_points =
-    String.concat " : " [ player.name; string_of_int player.points ]
-  in
-  if player.name = curr.name then
-    String.concat "-> " [ ""; name_points ]
-  else name_points
+let player_display player =
+  String.concat " : " [ player.name; string_of_int player.points ]
 
 (* draw players to players box given a list of game_state.players *)
 let rec draw_players ctx num_players curr = function
   | [] -> ()
   | h :: t ->
       if draw_players ctx num_players curr t = () then
-        let name_points = player_display h curr in
-        let ctx_size = LTerm_draw.size ctx in
-        LTerm_draw.draw_string_aligned ctx
-          ((num_players - List.length t)
-          * (ctx_size.rows / (num_players + 1)))
-          H_align_center
-          (Zed_string.of_utf8 name_points)
+        let name_points = player_display h in
+        if h.name = curr.name then
+          let ctx_size = LTerm_draw.size ctx in
+          LTerm_draw.draw_string_aligned ctx
+            ((num_players - List.length t)
+            * (ctx_size.rows / (num_players + 1)))
+            H_align_center
+            (Zed_string.of_utf8 name_points)
+            ~style:{ LTerm_style.none with reverse = Some true }
+        else
+          let ctx_size = LTerm_draw.size ctx in
+          LTerm_draw.draw_string_aligned ctx
+            ((num_players - List.length t)
+            * (ctx_size.rows / (num_players + 1)))
+            H_align_center
+            (Zed_string.of_utf8 name_points)
       else ()
 
 let draw_board_cursor ctx (row, col) =
@@ -201,7 +205,7 @@ let draw ui_terminal matrix (game_state : game_state) =
       { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
     in
     let ctx = LTerm_draw.sub ctx rect in
-    let players = sort_players game_state.players in
+    let players = game_state.players in
     (* draw board *)
     let current_player = game_state.current_player in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
@@ -229,7 +233,9 @@ let main () =
   (* Define players *)
   let player1 = { name = "P1"; points = 50; letters = start_game [] } in
   let player2 = { name = "P2"; points = 30; letters = start_game [] } in
-  let player_lst = [ player2; player1 ] in
+  let player3 = { name = "P3"; points = 30; letters = start_game [] } in
+  let player4 = { name = "P4"; points = 30; letters = start_game [] } in
+  let player_lst = [ player2; player1; player3; player4 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
 
@@ -237,7 +243,7 @@ let main () =
     ref
       {
         board = { cursor = (0, 0) };
-        players = player_lst;
+        players = sort_players player_lst;
         current_player = List.nth player_lst 0;
       }
   in
