@@ -5,5 +5,7 @@ type player = {
 }
 (** type [player] defines the player.
 
+    - Has field [name] used to store the player's name
+    - Has field [points] used to store how many points they have
     - Has field [letters] used to store the letters they have in their
       hand. *)
