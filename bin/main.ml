@@ -184,8 +184,8 @@ let draw ui_terminal matrix (game_state : game_state) =
 
 let main () =
   (* Define players *)
-  let player1 = { letters = start_game [] } in
-  let player2 = { letters = start_game [] } in
+  let player1 = { letters = start_game () } in
+  let player2 = { letters = start_game () } in
   let player_lst = [ player2; player1 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
