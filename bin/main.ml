@@ -32,7 +32,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players } = current_state in
+  let { board; players; current_player } = current_state in
   let { cursor } = board in
   let loop_result : loop_result =
     match evt with
@@ -62,7 +62,10 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
           }
     | LTerm_event.Key { code = Enter; _ } ->
         LoopResultUpdateState
-          { current_state with players = advance_players players }
+          {
+            current_state with
+            current_player = next_player current_player players;
+          }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
@@ -114,14 +117,22 @@ let rec draw_letters ctx lst =
           (Zed_string.of_utf8 (String.make 1 h))
       else ()
 
+(** [player_display player curr] is the string assigned to that player
+    to be displayed in the box*)
+let player_display player curr =
+  let name_points =
+    String.concat " : " [ player.name; string_of_int player.points ]
+  in
+  if player.name = curr.name then
+    String.concat "-> " [ ""; name_points ]
+  else name_points
+
 (* draw players to players box given a list of game_state.players *)
-let rec draw_players ctx num_players = function
+let rec draw_players ctx num_players curr = function
   | [] -> ()
   | h :: t ->
-      if draw_players ctx num_players t = () then
-        let name_points =
-          String.concat " : " [ h.name; string_of_int h.points ]
-        in
+      if draw_players ctx num_players curr t = () then
+        let name_points = player_display h curr in
         let ctx_size = LTerm_draw.size ctx in
         LTerm_draw.draw_string_aligned ctx
           ((num_players - List.length t)
@@ -166,6 +177,12 @@ let with_frame ctx label connection =
 
 let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] }
 
+(** [sort_players players] is a list of players types sorted
+    lexicographically by name. *)
+let sort_players players =
+  let comp p1 p2 = Stdlib.compare p1.name p2.name in
+  List.sort comp players
+
 (** The renderer. This takes game state and a terminal UI object and
     renders the game according to its current state. *)
 let draw ui_terminal matrix (game_state : game_state) =
@@ -184,9 +201,9 @@ let draw ui_terminal matrix (game_state : game_state) =
       { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
     in
     let ctx = LTerm_draw.sub ctx rect in
-    let players = game_state.players in
+    let players = sort_players game_state.players in
     (* draw board *)
-    let current_player = List.hd players in
+    let current_player = game_state.current_player in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
@@ -194,7 +211,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     draw_players ctx (List.length players) players);
+     draw_players ctx (List.length players) current_player players);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
@@ -217,7 +234,12 @@ let main () =
   let%lwt term = Lazy.force LTerm.stdout in
 
   let game_state : game_state ref =
-    ref { board = { cursor = (0, 0) }; players = player_lst }
+    ref
+      {
+        board = { cursor = (0, 0) };
+        players = player_lst;
+        current_player = List.nth player_lst 0;
+      }
   in
 
   let%lwt ui =
