@@ -1,12 +1,3 @@
-(*
- * move.ml
- * -------
- * Copyright : (c) 2011, Jeremie Dimino <jeremie@dimino.org>
- * Licence   : BSD3
- *
- * This file is a part of Lambda-Term.
- *)
-
 open Lwt
 open LTerm_geom
 open LTerm_key
@@ -231,10 +222,10 @@ let draw ui_terminal matrix (game_state : game_state) =
 
 let main () =
   (* Define players *)
-  let player1 = { name = "P1"; points = 50; letters = start_game [] } in
-  let player2 = { name = "P2"; points = 30; letters = start_game [] } in
-  let player3 = { name = "P3"; points = 30; letters = start_game [] } in
-  let player4 = { name = "P4"; points = 30; letters = start_game [] } in
+  let player1 = { name = "P1"; points = 50; letters = start_game () } in
+  let player2 = { name = "P2"; points = 30; letters = start_game () } in
+  let player3 = { name = "P3"; points = 30; letters = start_game () } in
+  let player4 = { name = "P4"; points = 30; letters = start_game () } in
   let player_lst = [ player2; player1; player3; player4 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
