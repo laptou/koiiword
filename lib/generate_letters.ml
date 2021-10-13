@@ -111,6 +111,7 @@ let num_vowels () =
     combinations. Probabilities for vowel/consonant frequency determined
     using http://www.breakingthegame.net/leaves2 *)
 let start_game () =
+  Random.self_init ();
   let n_vowels = num_vowels () in
   let n_conson = 7 - n_vowels in
   random_letters n_vowels vowel_amounts
@@ -134,19 +135,6 @@ let replace_let_biased goal lst =
         else h :: inner_let_biased (curr + 1) goal t
   in
   inner_let_biased 0 goal lst
-
-(** [random_items size repo] is a list of size [size] of elements from
-    [repo].*)
-let random_items size repo =
-  let rec inner_random_items size lst repo =
-    match lst with
-    | [] -> inner_random_items size [ get_random_item repo ] repo
-    | h :: t ->
-        if List.length t = size - 1 then h :: t
-        else
-          inner_random_items size (h :: get_random_item repo :: t) repo
-  in
-  inner_random_items size [] repo
 
 (** [random_let] is a randomly generated char from a-z. random_let :
     char*)

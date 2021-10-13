@@ -13,7 +13,7 @@ let start_game_testlength (name : string) (deck : char list) : test =
 let start_game_testcontent (name : string) (deck : char list) : test =
   name >:: fun _ -> assert_equal true (all_letters deck)
 
-let temp_deck = Generate_letters.start_game []
+let temp_deck = Generate_letters.start_game ()
 
 let test_cases =
   [
@@ -24,9 +24,9 @@ let test_cases =
       temp_deck;
     (* test remove_let*)
     start_game_testlength "start game creates list of length 7"
-      (Generate_letters.remove_let 0 2 temp_deck);
+      (Generate_letters.replace_let_biased 2 temp_deck);
     start_game_testcontent "start game creates list of letters A-Z"
-      (Generate_letters.remove_let 0 2 temp_deck);
+      (Generate_letters.replace_let_biased 2 temp_deck);
   ]
 
 let suite = "test suite for Generate_letters" >::: test_cases
