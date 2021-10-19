@@ -9,11 +9,11 @@ let advance_players_test
   name >:: fun _ ->
   assert_equal (advance_players player_lst) expected_player_list
 
-let player1 = { letters = start_game [] }
+let player1 = { letters = new_deck () }
 
-let player2 = { letters = start_game [] }
+let player2 = { letters = new_deck () }
 
-let player3 = { letters = start_game [] }
+let player3 = { letters = new_deck () }
 
 let player_lst = [ player1; player2; player3 ]
 

@@ -1,9 +1,7 @@
 type letter_deck = char list
 
-val random_let : unit -> char
+exception Missing_letter
 
-val start_game : char list -> char list
+val new_deck : unit -> char list
 
-val remove_let : int -> int -> letter_deck -> letter_deck
-
-val index_of_letter : int -> char -> letter_deck -> int
+val replace_letter : char -> letter_deck -> letter_deck
