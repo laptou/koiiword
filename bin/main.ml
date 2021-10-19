@@ -239,7 +239,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     ());
+     draw_players ctx (List.length players) current_player players);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
