@@ -58,12 +58,6 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             current_state with
             current_player = next_player current_player players;
           }
-    | LTerm_event.Key { code = Tab; _ } ->
-        LoopResultUpdateState
-          {
-            current_state with
-            board = { board with cursor = (fst cursor, snd cursor) };
-          }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
@@ -206,6 +200,8 @@ let with_frame ctx label connection =
 
 let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] }
 
+(** [sort_players players] is a list of players types sorted
+    lexicographically by name. *)
 let sort_players players =
   let comp p1 p2 = Stdlib.compare p1.name p2.name in
   List.sort comp players
@@ -230,7 +226,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     let ctx = LTerm_draw.sub ctx rect in
     let players = game_state.players in
     (* draw board *)
-    let current_player = List.hd game_state.players in
+    let current_player = game_state.current_player in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
