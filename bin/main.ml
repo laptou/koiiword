@@ -1,6 +1,7 @@
 open Lwt
 open LTerm_geom
 open LTerm_key
+open Koiiword
 open Koiiword.Board
 open Koiiword.State
 open Koiiword.Layout
@@ -24,7 +25,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players; current_player } = current_state in
+  let { board; players; current_player_index } = current_state in
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
@@ -56,7 +57,8 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         LoopResultUpdateState
           {
             current_state with
-            current_player = next_player current_player players;
+            current_player_index =
+              (current_player_index + 1) mod List.length players;
           }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
@@ -67,15 +69,23 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     | LTerm_event.Key { code = LTerm_key.Char c; control = false; _ }
       -> (
         let letter = Char.uppercase_ascii (UChar.char_of c) in
-        let tile = make_tile letter board.cursor in
-        match tile with
-        | Some tile ->
-            LoopResultUpdateState
-              {
-                current_state with
-                board = { board with tiles = tile :: board.tiles };
-              }
-        | _ -> LoopResultContinue)
+        let current_player = List.nth players current_player_index in
+        let current_deck = current_player.letters in
+        try
+          let new_deck = replace_letter_biased letter current_deck in
+          let tile = make_tile letter board.cursor in
+          match tile with
+          | Some tile ->
+              LoopResultUpdateState
+                {
+                  current_state with
+                  players =
+                    Util.set players current_player_index
+                      { current_player with letters = new_deck };
+                  board = { board with tiles = tile :: board.tiles };
+                }
+          | _ -> LoopResultContinue
+        with Not_found -> LoopResultContinue)
     | _ -> LoopResultContinue
   in
   match loop_result with
@@ -132,27 +142,27 @@ let player_display player =
   String.concat " : " [ player.name; string_of_int player.points ]
 
 (* draw players to players box given a list of game_state.players *)
-let rec draw_players ctx num_players curr = function
-  | [] -> ()
-  | h :: t ->
-      if draw_players ctx num_players curr t = () then
+let draw_players ctx players current_player_index =
+  let num_players = List.length players in
+  let rec inner idx = function
+    | [] -> ()
+    | h :: t ->
+        inner (idx + 1) t;
         let name_points = player_display h in
-        if h.name = curr.name then
-          let ctx_size = LTerm_draw.size ctx in
-          LTerm_draw.draw_string_aligned ctx
-            ((num_players - List.length t)
-            * (ctx_size.rows / (num_players + 1)))
-            H_align_center
-            (Zed_string.of_utf8 name_points)
-            ~style:{ LTerm_style.none with reverse = Some true }
-        else
-          let ctx_size = LTerm_draw.size ctx in
-          LTerm_draw.draw_string_aligned ctx
-            ((num_players - List.length t)
-            * (ctx_size.rows / (num_players + 1)))
-            H_align_center
-            (Zed_string.of_utf8 name_points)
-      else ()
+        let ctx_size = LTerm_draw.size ctx in
+        LTerm_draw.draw_string_aligned ctx
+          ((num_players - List.length t)
+          * (ctx_size.rows / (num_players + 1)))
+          H_align_center
+          (Zed_string.of_utf8 name_points)
+          ~style:
+            {
+              LTerm_style.none with
+              reverse = Some (idx = current_player_index);
+            }
+  in
+
+  inner 0 players
 
 let draw_board_cursor ctx (row, col) =
   let row, col = ((row * v_spacing) + 1, (col * h_spacing) + 1) in
@@ -229,7 +239,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     let ctx = LTerm_draw.sub ctx rect in
     let players = game_state.players in
     (* draw board *)
-    let current_player = game_state.current_player in
+    let current_player_index = game_state.current_player_index in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
@@ -238,10 +248,13 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     draw_players ctx (List.length players) current_player players);
+     draw_players ctx players current_player_index);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
+     let current_player =
+       List.nth game_state.players current_player_index
+     in
      draw_letters ctx current_player.letters);
     (* draw prompt box *)
     (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
@@ -267,7 +280,7 @@ let main () =
       {
         board = { cursor = (0, 0); tiles = [] };
         players = sort_players player_lst;
-        current_player = List.nth player_lst 0;
+        current_player_index = 0;
       }
   in
 

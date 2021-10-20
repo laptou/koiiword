@@ -14,3 +14,11 @@ let slice (lst : 'a list) (n : int) : 'a list * 'a list =
       | h :: t -> slice_inner (lst_a @ [ h ]) t n (i + 1)
   in
   slice_inner [] lst n 0
+
+(** [set lst n item] will return a new list where the item at index [n]
+    in [lst] is replaced with [item] and all other items are the same.
+    If [n] is greater than or equal to the length of [lst], then [item]
+    will be added at the end of the list. *)
+let set (lst : 'a list) (n : int) (item : 'a) : 'a list =
+  let left, right = slice lst n in
+  match right with [] -> left @ [ item ] | _ :: t -> left @ (item :: t)
