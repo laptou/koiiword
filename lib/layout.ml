@@ -1,5 +1,8 @@
 open LTerm_geom
 
+(* position is (row, col) *)
+type position = int * int
+
 (* A grid layout spec is a list of all of the dividing lines in a
    grid-based layout. each dividing line is represented as a float,
    which is the fraction of the width / height that this dividing line

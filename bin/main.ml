@@ -6,6 +6,7 @@ open Koiiword.State
 open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
+open Koiiword.Tile
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -24,32 +25,32 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
   let { board; players; current_player } = current_state in
-  let { cursor } = board in
+  let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
     | LTerm_event.Key { code = Up; _ } ->
         LoopResultUpdateState
           {
             current_state with
-            board = { cursor = (fst cursor - 1, snd cursor) };
+            board = { board with cursor = (fst cursor - 1, snd cursor) };
           }
     | LTerm_event.Key { code = Down; _ } ->
         LoopResultUpdateState
           {
             current_state with
-            board = { cursor = (fst cursor + 1, snd cursor) };
+            board = { board with cursor = (fst cursor + 1, snd cursor) };
           }
     | LTerm_event.Key { code = Left; _ } ->
         LoopResultUpdateState
           {
             current_state with
-            board = { cursor = (fst cursor, snd cursor - 1) };
+            board = { board with cursor = (fst cursor, snd cursor - 1) };
           }
     | LTerm_event.Key { code = Right; _ } ->
         LoopResultUpdateState
           {
             current_state with
-            board = { cursor = (fst cursor, snd cursor + 1) };
+            board = { board with cursor = (fst cursor, snd cursor + 1) };
           }
     | LTerm_event.Key { code = Enter; _ } ->
         LoopResultUpdateState
@@ -63,6 +64,18 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         match UChar.char_of c with
         | 'c' -> LoopResultExit
         | _ -> LoopResultContinue)
+    | LTerm_event.Key { code = LTerm_key.Char c; control = false; _ }
+      -> (
+        let letter = Char.uppercase_ascii (UChar.char_of c) in
+        let tile = make_tile letter board.cursor in
+        match tile with
+        | Some tile ->
+            LoopResultUpdateState
+              {
+                current_state with
+                board = { board with tiles = tile :: board.tiles };
+              }
+        | _ -> LoopResultContinue)
     | _ -> LoopResultContinue
   in
   match loop_result with
@@ -73,6 +86,10 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
       loop ui game_state
   | LoopResultContinue -> loop ui game_state
 
+let h_spacing = 3
+
+let v_spacing = 2
+
 let draw_board_gridlines ctx =
   let rec range start stop step fn =
     fn start;
@@ -81,8 +98,6 @@ let draw_board_gridlines ctx =
   let size = LTerm_draw.size ctx in
   let width = size.cols in
   let height = size.rows in
-  let h_spacing = 3 in
-  let v_spacing = 2 in
   let style =
     { LTerm_style.none with foreground = Some LTerm_style.lblue }
   in
@@ -137,7 +152,7 @@ let rec draw_players ctx num_players curr = function
       else ()
 
 let draw_board_cursor ctx (row, col) =
-  let row, col = ((row * 2) + 1, (col * 3) + 1) in
+  let row, col = ((row * v_spacing) + 1, (col * h_spacing) + 1) in
   let style = { LTerm_style.none with reverse = Some true } in
   try
     LTerm_draw.set_style (LTerm_draw.point ctx row col) style;
@@ -145,6 +160,19 @@ let draw_board_cursor ctx (row, col) =
   with
   | LTerm_draw.Out_of_bounds -> ()
   | exn -> raise exn
+
+let draw_board_tiles ctx tiles =
+  let _ =
+    List.map
+      (fun tile ->
+        let letter, (row, col) = tile in
+        LTerm_draw.draw_char ctx
+          ((row * v_spacing) + 1)
+          ((col * h_spacing) + 1)
+          (Zed_char.of_utf8 (String.make 1 letter)))
+      tiles
+  in
+  ()
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -202,7 +230,8 @@ let draw ui_terminal matrix (game_state : game_state) =
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
-     draw_board_cursor ctx game_state.board.cursor);
+     draw_board_cursor ctx game_state.board.cursor;
+     draw_board_tiles ctx game_state.board.tiles);
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
@@ -233,7 +262,7 @@ let main () =
   let game_state : game_state ref =
     ref
       {
-        board = { cursor = (0, 0) };
+        board = { cursor = (0, 0); tiles = [] };
         players = sort_players player_lst;
         current_player = List.nth player_lst 0;
       }

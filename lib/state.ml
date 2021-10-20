@@ -1,5 +1,6 @@
 open Board
 open Player
+(* open Tile *)
 
 type game_state = {
   board : board;

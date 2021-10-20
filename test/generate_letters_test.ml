@@ -1,6 +1,8 @@
 open OUnit2
 open Koiiword
 
+let is_letter ch = match ch with 'A' .. 'Z' -> true | _ -> false
+
 let rec all_letters = function
   | [] -> true
   | h :: t -> (
