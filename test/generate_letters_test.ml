@@ -1,34 +1,52 @@
 open OUnit2
-open Koiiword
+open Koiiword.Generate_letters
+open Util
 
 let is_letter ch = match ch with 'A' .. 'Z' -> true | _ -> false
 
-let rec all_letters = function
-  | [] -> true
-  | h :: t -> (
-      try Char.code h > 64 && Char.code h < 91 && all_letters t
-      with Invalid_argument _ -> false)
+let pp_deck deck = pp_list pp_char (deck_to_letters deck)
 
-let start_game_testlength (name : string) (deck : char list) : test =
-  name >:: fun _ -> assert_equal true (List.length deck = 7)
+let test_deck_length (deck : letter_deck) : test =
+  "letter deck contains 7 chars" >:: fun _ ->
+  assert_equal 7 (List.length (deck_to_letters deck))
 
-let start_game_testcontent (name : string) (deck : char list) : test =
-  name >:: fun _ -> assert_equal true (all_letters deck)
+let test_deck_content (deck : letter_deck) : test =
+  "letter deck contains only letters" >:: fun _ ->
+  assert_bool
+    (Printf.sprintf "letter deck %s contained a non-letter"
+       (pp_deck deck))
+    (List.for_all is_letter (deck_to_letters deck))
 
-let temp_deck = Generate_letters.start_game ()
+let test_deck_replace_missing (deck : letter_deck) (letter : char) :
+    test =
+  Printf.sprintf "replacing letter %s in deck %s raises"
+    (pp_char letter) (pp_deck deck)
+  >:: fun _ ->
+  assert_raises Not_found (fun () -> replace_letter_biased letter deck)
+
+let test_deck_replace
+    (deck : letter_deck)
+    (letter : char)
+    (expected : letter_deck) : test =
+  Printf.sprintf "replacing letter %s in deck %s returns %s"
+    (pp_char letter) (pp_deck deck) (pp_deck expected)
+  >:: fun _ ->
+  assert_equal expected
+    (replace_letter_biased letter deck)
+    ~printer:pp_deck
+
+let _ = Random.init 1289301209
+
+(* letter deck w/ this seed is [E W X R G N W] *)
+let test_deck = new_deck ()
 
 let test_cases =
   [
-    (* test start_game*)
-    start_game_testlength "start game creates list of length 7"
-      temp_deck;
-    start_game_testcontent "start game creates list of letters A-Z"
-      temp_deck;
-    (* test remove_let*)
-    start_game_testlength "start game creates list of length 7"
-      (Generate_letters.replace_let_biased 2 temp_deck);
-    start_game_testcontent "start game creates list of letters A-Z"
-      (Generate_letters.replace_let_biased 2 temp_deck);
+    test_deck_length test_deck;
+    test_deck_content test_deck;
+    test_deck_replace test_deck 'W'
+      (deck_from_letters [ 'E'; 'O'; 'X'; 'R'; 'G'; 'N'; 'W' ]);
+    test_deck_replace_missing test_deck 'A';
   ]
 
 let suite = "test suite for Generate_letters" >::: test_cases

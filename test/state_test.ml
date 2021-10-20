@@ -11,11 +11,11 @@ let test_next_player
   name >:: fun _ ->
   assert_equal (next_player curr_player players) expected_output
 
-let player1 = { name = "P1"; points = 50; letters = start_game () }
+let player1 = { name = "P1"; points = 50; letters = new_deck () }
 
-let player2 = { name = "P2"; points = 30; letters = start_game () }
+let player2 = { name = "P2"; points = 30; letters = new_deck () }
 
-let player3 = { name = "P3"; points = 70; letters = start_game () }
+let player3 = { name = "P3"; points = 70; letters = new_deck () }
 
 let player_lst = [ player1; player2; player3 ]
 

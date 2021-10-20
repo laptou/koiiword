@@ -110,18 +110,21 @@ let draw_board_gridlines ctx =
   range 0 width h_spacing (fun col ->
       LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light)
 
-(* draw letters to letter box given a player's letter [lst] *)
-let rec draw_letters ctx lst =
+(* draw letters to letter box given a player's letter deck [deck] *)
+let draw_letters ctx deck =
   let ctx_size = LTerm_draw.size ctx in
-  match lst with
-  | [] -> ()
-  | h :: t ->
-      if draw_letters ctx t = () then
-        LTerm_draw.draw_string_aligned ctx
-          ((7 - List.length t) * (ctx_size.rows / 8))
-          H_align_center
-          (Zed_string.of_utf8 (String.make 1 h))
-      else ()
+  let rec inner lst =
+    match lst with
+    | [] -> ()
+    | h :: t ->
+        if inner t = () then
+          LTerm_draw.draw_string_aligned ctx
+            ((7 - List.length t) * (ctx_size.rows / 8))
+            H_align_center
+            (Zed_string.of_utf8 (String.make 1 h))
+        else ()
+  in
+  inner (deck_to_letters deck)
 
 (** [player_display player curr] is the string assigned to that player
     to be displayed in the box*)
@@ -251,10 +254,10 @@ let draw ui_terminal matrix (game_state : game_state) =
 
 let main () =
   (* Define players *)
-  let player1 = { name = "P1"; points = 50; letters = start_game () } in
-  let player2 = { name = "P2"; points = 30; letters = start_game () } in
-  let player3 = { name = "P3"; points = 30; letters = start_game () } in
-  let player4 = { name = "P4"; points = 30; letters = start_game () } in
+  let player1 = { name = "P1"; points = 50; letters = new_deck () } in
+  let player2 = { name = "P2"; points = 30; letters = new_deck () } in
+  let player3 = { name = "P3"; points = 30; letters = new_deck () } in
+  let player4 = { name = "P4"; points = 30; letters = new_deck () } in
   let player_lst = [ player1; player2; player3; player4 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
