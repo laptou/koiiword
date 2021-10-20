@@ -265,6 +265,8 @@ let draw ui_terminal matrix (game_state : game_state) =
     ()
 
 let main () =
+  Random.self_init ();
+
   (* Define players *)
   let player1 = { name = "P1"; points = 50; letters = new_deck () } in
   let player2 = { name = "P2"; points = 30; letters = new_deck () } in
