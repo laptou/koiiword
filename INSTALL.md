@@ -1,6 +1,6 @@
 # how to install koiiword
 
 ```bash
-opam install .
-koiiword
+dune build
+dune exec bin/main.exe
 ```
