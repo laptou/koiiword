@@ -7,6 +7,7 @@ let super_suite =
       Util_test.suite;
       Layout_test.suite;
       State_test.suite;
+      Board_test.suite;
     ]
 
 let _ = run_test_tt_main super_suite
