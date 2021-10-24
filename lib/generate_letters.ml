@@ -1,23 +1,9 @@
-(* letter_deck is a list containing 7 random chars at any time. To be
-   used in a game of scrabble. If the char has been used in the game, a
-   new char will take its place, so there will never be an empty index.
-   Requires each char in the list to be an alphabetical letter at any
-   given time. *)
 type letter_deck = char list
 (** [letter_deck] is a list containing 7 random chars at any time. To be
     used in a game of scrabble. If the char has been used in the game, a
     new char will take its place, so there will never be an empty index.
     Requires each char in the list to be an alphabetical letter at any
     given time. *)
-
-(** [index_of_letter curr letter lst] is the index of the first
-    occurrence of this character in the list. Requires letter to be
-    present in lst and curr to be the current index (starting at 0).
-    index_of_letter : int -> char -> letter_deck -> int*)
-let rec index_of_letter curr letter = function
-  | [] -> raise (Failure "Empty List")
-  | h :: t ->
-      if h = letter then curr else index_of_letter (curr + 1) letter t
 
 (* vowel_amounts is an association list that links each vowel to the
    probability of drawing that vowel given it's frequency in the tiles*)
@@ -55,16 +41,10 @@ let biased_bool prob total =
   let pick = Random.int total in
   if pick < prob then true else false
 
-(** [index_item ind curr lst] is the item of lst at index ind. The
-    parameter curr is the current index.*)
-let rec index_item curr ind = function
-  | [] -> raise Not_found
-  | h :: t -> if curr = ind then h else index_item (curr + 1) ind t
-
 (** [get_random_item lst] is a random element from lst. *)
 let get_random_item lst =
   let ind = Random.int (List.length lst) in
-  index_item 0 ind lst
+  List.nth lst ind
 
 (** [match_probability prob lst] is a list of values from association
     list [lst] whose key satisfies the probability [prob]. Requires
@@ -108,39 +88,41 @@ let random_letters size assoc =
     on a series of probabilities.*)
 let num_vowels () =
   let side = Random.int 6 in
-  let pick = index_item 0 side prob in
+  let pick = List.nth prob side in
   let h_or_t = biased_bool (int_of_float pick * 100) 100 in
-  if h_or_t then side else index_item 0 side alias
+  if h_or_t then side else List.nth alias side
 
-(** [start_game] is a letter_deck of length 7 reflecting accurate letter
+(** [new_deck] is a letter_deck of length 7 reflecting accurate letter
     combinations. Probabilities for vowel/consonant frequency determined
     using http://www.breakingthegame.net/leaves2 *)
-let start_game () =
-  Random.self_init ();
+let new_deck () =
   let n_vowels = num_vowels () in
   let n_conson = 7 - n_vowels in
   random_letters n_vowels vowel_amounts
   @ random_letters n_conson consonant_amounts
 
-(** [realistic_let] is a char, with a 19% chance of being a vowel. *)
-let realistic_let () =
-  if Random.int 26 < 5 then
-    index_item 0 0 (random_letters 1 vowel_amounts)
-  else index_item 0 0 (random_letters 1 consonant_amounts)
+(** [random_letter] is a randomly generated char from a-z. random_let :
+    char. *)
+let random_letter () = Char.chr (Random.int 26 + 65)
 
-(** [replace_let_biased goal lst] removes the appropriate letter when
-    players use a letter and refills it with a new letter. The letter
-    has a 19% chance of being a vowel. Requires goal to be the index of
-    the letter to be removed. *)
-let replace_let_biased goal lst =
-  let rec inner_let_biased curr goal = function
-    | [] -> start_game ()
+(** [realistic_letter] is a char, with a 19% chance of being a vowel. *)
+let realistic_letter () =
+  if Random.int 26 < 5 then get_random_letter vowel_amounts
+  else get_random_letter consonant_amounts
+
+(** [replace_letter_biased letter deck] removes the first instance of
+    [letter] from [deck] and replaces it with another letter according
+    to the probability distribution. Raises [Not_found] if [deck] does
+    not contain [letter] *)
+let replace_letter_biased letter deck =
+  let rec helper partial_lst =
+    match partial_lst with
+    | [] -> raise Not_found
     | h :: t ->
-        if curr = goal then realistic_let () :: t
-        else h :: inner_let_biased (curr + 1) goal t
+        if h = letter then realistic_letter () :: t else h :: helper t
   in
-  inner_let_biased 0 goal lst
+  helper deck
 
-(** [random_let] is a randomly generated char from a-z. random_let :
-    char*)
-let random_let () = Char.chr (Random.int 26 + 65)
+let deck_from_letters deck = deck
+
+let deck_to_letters deck = deck
