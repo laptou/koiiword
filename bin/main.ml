@@ -75,15 +75,17 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
           let new_deck = replace_letter_biased letter current_deck in
           let tile = make_tile letter board.cursor in
           match tile with
-          | Some tile ->
-              LoopResultUpdateState
-                {
-                  current_state with
-                  players =
-                    Util.set players current_player_index
-                      { current_player with letters = new_deck };
-                  board = { board with tiles = tile :: board.tiles };
-                }
+          | Some tile -> (
+              try
+                set_tile board tile;
+                LoopResultUpdateState
+                  {
+                    current_state with
+                    players =
+                      Util.set players current_player_index
+                        { current_player with letters = new_deck };
+                  }
+              with _ -> LoopResultContinue)
           | _ -> LoopResultContinue
         with Not_found -> LoopResultContinue)
     | _ -> LoopResultContinue
@@ -175,17 +177,14 @@ let draw_board_cursor ctx (row, col) =
   | exn -> raise exn
 
 let draw_board_tiles ctx tiles =
-  let _ =
-    List.map
-      (fun tile ->
-        let letter, (row, col) = tile in
-        LTerm_draw.draw_char ctx
-          ((row * v_spacing) + 1)
-          ((col * h_spacing) + 1)
-          (Zed_char.of_utf8 (String.make 1 letter)))
-      tiles
-  in
-  ()
+  Seq.iter
+    (fun (position, letter) ->
+      let row, col = position in
+      LTerm_draw.draw_char ctx
+        ((row * v_spacing) + 1)
+        ((col * h_spacing) + 1)
+        (Zed_char.of_utf8 (String.make 1 letter)))
+    (Hashtbl.to_seq tiles)
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -266,6 +265,8 @@ let draw ui_terminal matrix (game_state : game_state) =
     ()
 
 let main () =
+  Random.self_init ();
+
   (* Define players *)
   let player1 = { name = "P1"; points = 50; letters = new_deck () } in
   let player2 = { name = "P2"; points = 30; letters = new_deck () } in
@@ -278,7 +279,7 @@ let main () =
   let game_state : game_state ref =
     ref
       {
-        board = { cursor = (0, 0); tiles = [] };
+        board = { cursor = (0, 0); tiles = Hashtbl.create 100 };
         players = sort_players player_lst;
         current_player_index = 0;
       }

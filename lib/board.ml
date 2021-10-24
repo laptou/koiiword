@@ -1,14 +1,16 @@
 open Tile
 open Layout
-(* open LTerm_geom *)
 
 type board = {
   cursor : position;
-  tiles : tile list;
+  tiles : (position, char) Hashtbl.t;
 }
 
-(* let set_tile (b : board) (t : tile) = { cursor = b.cursor; opt = Some
-   t } *)
+let set_tile board (tile : tile) =
+  let ch, position = tile in
+  if Hashtbl.mem board.tiles position then
+    raise (Failure "there is a tile at this position already")
+  else Hashtbl.add board.tiles position ch
 
-(* let is_letter (t : tile) = match t with 'a' .. 'z' | 'A' .. 'Z' ->
-   Some t | _ -> None *)
+let get_tile board position =
+  try Some (Hashtbl.find board.tiles position) with Not_found -> None
