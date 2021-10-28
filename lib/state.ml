@@ -1,6 +1,7 @@
 open Board
 open Player
 open Layout
+open Generate_letters
 
 (* entry state describes the stage of entering a word that the current
    player is at *)
@@ -9,9 +10,19 @@ type entry_state =
   | SelectStart
   (* they are selecting which direction the word they will enter should
      travel *)
-  | SelectDirection of position
+  | SelectDirection of { start : position }
   (* they are adding letters to this word *)
-  | AddLetter of position * direction * char list
+  | AddLetter of {
+      (* the position where this letter starts*)
+      start : position;
+      (* the direction that this word travels from the start *)
+      direction : direction;
+      (* the letter deck the current player had before adding any
+         letters *)
+      deck : letter_deck;
+      (* the letters that have been added to this word so far *)
+      word : char list;
+    }
 
 type game_state = {
   board : board;
