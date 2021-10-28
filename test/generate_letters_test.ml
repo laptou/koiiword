@@ -17,14 +17,14 @@ let test_deck_content (deck : letter_deck) : test =
        (pp_deck deck))
     (List.for_all is_letter (deck_to_letters deck))
 
-let test_deck_replace_missing (deck : letter_deck) (letter : char) :
+let test_deck_consume_missing (deck : letter_deck) (letter : char) :
     test =
-  Printf.sprintf "replacing letter %s in deck %s raises"
+  Printf.sprintf "consuming letter %s in deck %s raises"
     (pp_char letter) (pp_deck deck)
   >:: fun _ ->
-  assert_raises Not_found (fun () -> replace_letter_biased letter deck)
+  assert_raises Not_found (fun () -> consume_letter letter deck)
 
-let test_deck_replace
+let test_deck_consume
     (deck : letter_deck)
     (letter : char)
     (expected : letter_deck) : test =
@@ -32,7 +32,7 @@ let test_deck_replace
     (pp_char letter) (pp_deck deck) (pp_deck expected)
   >:: fun _ ->
   assert_equal expected
-    (replace_letter_biased letter deck)
+    (consume_letter letter deck)
     ~printer:pp_deck
 
 let _ = Random.init 1289301209
@@ -44,9 +44,9 @@ let test_cases =
   [
     test_deck_length test_deck;
     test_deck_content test_deck;
-    test_deck_replace test_deck 'W'
-      (deck_from_letters [ 'E'; 'O'; 'X'; 'R'; 'G'; 'N'; 'W' ]);
-    test_deck_replace_missing test_deck 'A';
+    test_deck_consume test_deck 'W'
+      (deck_from_letters [ 'E'; 'X'; 'R'; 'G'; 'N'; 'W' ]);
+    test_deck_consume_missing test_deck 'A';
   ]
 
 let suite = "test suite for Generate_letters" >::: test_cases

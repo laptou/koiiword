@@ -25,7 +25,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players; current_player_index } = current_state in
+  let { board; players; entry; current_player_index } = current_state in
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
@@ -53,14 +53,27 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             current_state with
             board = { board with cursor = (fst cursor, snd cursor + 1) };
           }
-    | LTerm_event.Key { code = Enter; _ } ->
-        LoopResultUpdateState
-          {
-            current_state with
-            current_player_index =
-              (current_player_index + 1) mod List.length players;
-          }
-    | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
+    | LTerm_event.Key { code = Enter; _ } -> (
+        match entry with
+        | SelectStart -> (
+            (* only allow the player to start a word here if there is no
+               tile at this location*)
+            match get_tile board cursor with
+            | None ->
+                LoopResultUpdateState
+                  {
+                    current_state with
+                    entry = SelectDirection { start = cursor };
+                  }
+            | _ -> LoopResultContinue)
+        | AddLetter _ ->
+            (* TODO: validate the word they just created and either
+               apply it or reject it*)
+            LoopResultUpdateState
+              { current_state with entry = SelectStart }
+        | _ -> LoopResultContinue)
+    | LTerm_event.Key { code = Escape; _ } ->
+        LoopResultUpdateState { current_state with entry = SelectStart }
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
         match UChar.char_of c with
@@ -68,26 +81,32 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = LTerm_key.Char c; control = false; _ }
       -> (
-        let letter = Char.uppercase_ascii (UChar.char_of c) in
-        let current_player = List.nth players current_player_index in
-        let current_deck = current_player.letters in
-        try
-          let new_deck = replace_letter_biased letter current_deck in
-          let tile = make_tile letter board.cursor in
-          match tile with
-          | Some tile -> (
-              try
-                set_tile board tile;
-                LoopResultUpdateState
-                  {
-                    current_state with
-                    players =
-                      Util.set players current_player_index
-                        { current_player with letters = new_deck };
-                  }
-              with _ -> LoopResultContinue)
-          | _ -> LoopResultContinue
-        with Not_found -> LoopResultContinue)
+        match entry with
+        | AddLetter { start; direction; deck; word } -> (
+            let letter = Char.uppercase_ascii (UChar.char_of c) in
+            let current_player =
+              List.nth players current_player_index
+            in
+            let current_deck = current_player.letters in
+            try
+              let new_deck = consume_letter letter current_deck in
+              LoopResultUpdateState
+                {
+                  current_state with
+                  players =
+                    Util.set players current_player_index
+                      { current_player with letters = new_deck };
+                  entry =
+                    AddLetter
+                      {
+                        start;
+                        direction;
+                        deck;
+                        word = word @ [ letter ];
+                      };
+                }
+            with Not_found -> LoopResultContinue)
+        | _ -> LoopResultContinue)
     | _ -> LoopResultContinue
   in
   match loop_result with
@@ -281,6 +300,7 @@ let main () =
       {
         board = { cursor = (0, 0); tiles = Hashtbl.create 100 };
         players = sort_players player_lst;
+        entry = SelectStart;
         current_player_index = 0;
       }
   in
