@@ -22,3 +22,5 @@ let slice (lst : 'a list) (n : int) : 'a list * 'a list =
 let set (lst : 'a list) (n : int) (item : 'a) : 'a list =
   let left, right = slice lst n in
   match right with [] -> left @ [ item ] | _ :: t -> left @ (item :: t)
+
+let explode s = List.init (String.length s) (String.get s)
