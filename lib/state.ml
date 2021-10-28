@@ -13,7 +13,7 @@ type entry_state =
   | SelectDirection of { start : position }
   (* they are adding letters to this word *)
   | AddLetter of {
-      (* the position where this letter starts*)
+      (* the position where this word starts *)
       start : position;
       (* the direction that this word travels from the start *)
       direction : direction;
