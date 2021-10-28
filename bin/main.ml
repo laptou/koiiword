@@ -241,6 +241,34 @@ let draw_board_tiles ctx tiles =
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
 
+let draw_entry_highlight ctx (start : position) (direction : direction)
+    =
+  let rec helper (row, col) (row_increment, col_increment) =
+    try
+      LTerm_draw.set_style
+        (LTerm_draw.point ctx
+           ((row * v_spacing) + 1)
+           ((col * h_spacing) + 1))
+        { LTerm_style.none with reverse = Some true };
+      LTerm_draw.set_style
+        (LTerm_draw.point ctx
+           ((row * v_spacing) + 1)
+           ((col * h_spacing) + 2))
+        { LTerm_style.none with reverse = Some true };
+      helper
+        (row + row_increment, col + col_increment)
+        (row_increment, col_increment)
+    with LTerm_draw.Out_of_bounds -> ()
+  in
+  let increment =
+    match direction with
+    | Up -> (-1, 0)
+    | Down -> (1, 0)
+    | Left -> (0, -1)
+    | Right -> (0, 1)
+  in
+  helper start increment
+
 let draw_entry_tiles
     ctx
     tiles
@@ -367,6 +395,7 @@ let draw ui_terminal matrix (game_state : game_state) =
      draw_board_tiles ctx game_state.board.tiles;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
+         draw_entry_highlight ctx start direction;
          draw_entry_tiles ctx game_state.board.tiles start direction
            word
      | _ -> ());
