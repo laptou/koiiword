@@ -18,6 +18,19 @@ type loop_result =
   | LoopResultUpdateState of game_state
   | LoopResultExit
 
+let with_input_direction
+    (current_state : game_state)
+    (start : position)
+    (direction : direction) =
+  let { players; current_player_index; _ } = current_state in
+  let current_player = List.nth players current_player_index in
+  let current_deck = current_player.letters in
+  {
+    current_state with
+    entry =
+      AddLetter { start; direction; deck = current_deck; word = [] };
+  }
+
 (** The game loop. This loop runs for as long as the game is running,
     and changes the game's state in response to events. *)
 let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
@@ -28,30 +41,58 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
-    | LTerm_event.Key { code = Up; _ } ->
-        LoopResultUpdateState
-          {
-            current_state with
-            board = { board with cursor = (fst cursor - 1, snd cursor) };
-          }
-    | LTerm_event.Key { code = Down; _ } ->
-        LoopResultUpdateState
-          {
-            current_state with
-            board = { board with cursor = (fst cursor + 1, snd cursor) };
-          }
-    | LTerm_event.Key { code = Left; _ } ->
-        LoopResultUpdateState
-          {
-            current_state with
-            board = { board with cursor = (fst cursor, snd cursor - 1) };
-          }
-    | LTerm_event.Key { code = Right; _ } ->
-        LoopResultUpdateState
-          {
-            current_state with
-            board = { board with cursor = (fst cursor, snd cursor + 1) };
-          }
+    | LTerm_event.Key { code = Up; _ } -> (
+        match entry with
+        | SelectStart ->
+            LoopResultUpdateState
+              {
+                current_state with
+                board =
+                  { board with cursor = (fst cursor - 1, snd cursor) };
+              }
+        | SelectDirection { start } ->
+            LoopResultUpdateState
+              (with_input_direction current_state start Up)
+        | _ -> LoopResultContinue)
+    | LTerm_event.Key { code = Down; _ } -> (
+        match entry with
+        | SelectStart ->
+            LoopResultUpdateState
+              {
+                current_state with
+                board =
+                  { board with cursor = (fst cursor + 1, snd cursor) };
+              }
+        | SelectDirection { start } ->
+            LoopResultUpdateState
+              (with_input_direction current_state start Down)
+        | _ -> LoopResultContinue)
+    | LTerm_event.Key { code = Left; _ } -> (
+        match entry with
+        | SelectStart ->
+            LoopResultUpdateState
+              {
+                current_state with
+                board =
+                  { board with cursor = (fst cursor, snd cursor - 1) };
+              }
+        | SelectDirection { start } ->
+            LoopResultUpdateState
+              (with_input_direction current_state start Left)
+        | _ -> LoopResultContinue)
+    | LTerm_event.Key { code = Right; _ } -> (
+        match entry with
+        | SelectStart ->
+            LoopResultUpdateState
+              {
+                current_state with
+                board =
+                  { board with cursor = (fst cursor, snd cursor + 1) };
+              }
+        | SelectDirection { start } ->
+            LoopResultUpdateState
+              (with_input_direction current_state start Right)
+        | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Enter; _ } -> (
         match entry with
         | SelectStart -> (
