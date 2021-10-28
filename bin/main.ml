@@ -31,6 +31,16 @@ let with_input_direction
       AddLetter { start; direction; deck = current_deck; word = [] };
   }
 
+let with_deck (current_state : game_state) (new_deck : letter_deck) =
+  let { players; current_player_index; _ } = current_state in
+  let current_player = List.nth players current_player_index in
+  {
+    current_state with
+    players =
+      Util.set players current_player_index
+        { current_player with letters = new_deck };
+  }
+
 (** The game loop. This loop runs for as long as the game is running,
     and changes the game's state in response to events. *)
 let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
@@ -123,8 +133,20 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 entry = SelectStart;
               }
         | _ -> LoopResultContinue)
-    | LTerm_event.Key { code = Escape; _ } ->
-        LoopResultUpdateState { current_state with entry = SelectStart }
+    | LTerm_event.Key { code = Escape; _ } -> (
+        match entry with
+        (* if they were in the middle of spelling a word, restore the
+           original deck *)
+        | AddLetter { deck; _ } ->
+            LoopResultUpdateState
+              {
+                (with_deck current_state deck) with
+                entry = SelectStart;
+              }
+        (* otherwise, just switch back to select start mode *)
+        | _ ->
+            LoopResultUpdateState
+              { current_state with entry = SelectStart })
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
         match UChar.char_of c with
