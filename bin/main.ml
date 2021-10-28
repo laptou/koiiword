@@ -7,7 +7,6 @@ open Koiiword.State
 open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
-open Koiiword.Tile
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -67,10 +66,21 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   }
             | _ -> LoopResultContinue)
         | AddLetter _ ->
+            let current_player =
+              List.nth players current_player_index
+            in
+            let current_deck = current_player.letters in
+            let new_deck = refill_deck current_deck in
             (* TODO: validate the word they just created and either
                apply it or reject it*)
             LoopResultUpdateState
-              { current_state with entry = SelectStart }
+              {
+                current_state with
+                players =
+                  Util.set players current_player_index
+                    { current_player with letters = new_deck };
+                entry = SelectStart;
+              }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } ->
         LoopResultUpdateState { current_state with entry = SelectStart }
