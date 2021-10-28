@@ -7,6 +7,7 @@ open Koiiword.State
 open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
+open Koiiword.Entry
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -116,14 +117,14 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     entry = SelectDirection { start = cursor };
                   }
             | _ -> LoopResultContinue)
-        | AddLetter _ ->
+        | AddLetter { start; direction; word; _ } ->
             let current_player =
               List.nth players current_player_index
             in
             let current_deck = current_player.letters in
             let new_deck = refill_deck current_deck in
             (* TODO: validate the word they just created and either
-               apply it or reject it*)
+               apply it or reject it *)
             LoopResultUpdateState
               {
                 current_state with
@@ -131,6 +132,12 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   Util.set players current_player_index
                     { current_player with letters = new_deck };
                 entry = SelectStart;
+                board =
+                  {
+                    board with
+                    tiles =
+                      apply_entry_tiles board.tiles start direction word;
+                  };
               }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
@@ -233,37 +240,6 @@ let draw_board_tiles ctx tiles =
         ((col * h_spacing) + 1)
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
-
-let get_entry_letter_positions
-    tiles
-    (start : position)
-    (direction : direction)
-    (word : char list) : (char * position) list =
-  let rec helper (row, col) (row_increment, col_increment) tiles letters
-      =
-    if Hashtbl.mem tiles (row, col) then
-      helper
-        (row + row_increment, col + col_increment)
-        (row_increment, col_increment)
-        tiles letters
-    else
-      match letters with
-      | letter :: letters ->
-          (letter, (row, col))
-          :: helper
-               (row + row_increment, col + col_increment)
-               (row_increment, col_increment)
-               tiles letters
-      | [] -> []
-  in
-  let increment =
-    match direction with
-    | Up -> (-1, 0)
-    | Down -> (1, 0)
-    | Left -> (0, -1)
-    | Right -> (0, 1)
-  in
-  helper start increment tiles word
 
 let draw_entry_tiles
     ctx
