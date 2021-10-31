@@ -130,6 +130,8 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 players =
                   Util.set players current_player_index
                     { current_player with letters = new_deck };
+                current_player_index =
+                  (current_player_index + 1) mod List.length players;
                 entry = SelectStart;
               }
         | _ -> LoopResultContinue)
