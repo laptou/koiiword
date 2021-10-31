@@ -37,7 +37,7 @@ let test_deck_consume
 
 let _ = Random.init 1289301209
 
-(* letter deck w/ this seed is [E W X R G N W] *)
+(* letter deck w/ this seed is ['F', 'G', 'X', 'L', 'O', 'W', 'A'] *)
 let test_deck = new_deck ()
 
 let test_cases =
@@ -45,8 +45,8 @@ let test_cases =
     test_deck_length test_deck;
     test_deck_content test_deck;
     test_deck_consume test_deck 'W'
-      (deck_from_letters [ 'E'; 'X'; 'R'; 'G'; 'N'; 'W' ]);
-    test_deck_consume_missing test_deck 'A';
+      (deck_from_letters [ 'F'; 'G'; 'X'; 'L'; 'O'; 'A' ]);
+    test_deck_consume_missing test_deck 'D';
   ]
 
 let suite = "test suite for Generate_letters" >::: test_cases
