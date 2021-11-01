@@ -127,7 +127,6 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                apply it or reject it *)
             LoopResultUpdateState
               {
-                current_state with
                 players =
                   Util.set players current_player_index
                     { current_player with letters = new_deck };
