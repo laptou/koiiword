@@ -1,6 +1,6 @@
 type dictionary = (string, string) Hashtbl.t
 (** type [dictionary] is the type for the HashTable containing the
-    dictionary contents *)
+    dictionary contents (string, string) [(word, word)] *)
 
 (** [dict_from_file] takes in [file_name] string to give a dictionary of
     type [dictionary]*)
