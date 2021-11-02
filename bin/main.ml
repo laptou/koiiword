@@ -7,6 +7,7 @@ open Koiiword.State
 open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
+open Koiiword.Entry
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -116,23 +117,28 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     entry = SelectDirection { start = cursor };
                   }
             | _ -> LoopResultContinue)
-        | AddLetter _ ->
+        | AddLetter { start; direction; word; _ } ->
             let current_player =
               List.nth players current_player_index
             in
             let current_deck = current_player.letters in
             let new_deck = refill_deck current_deck in
             (* TODO: validate the word they just created and either
-               apply it or reject it*)
+               apply it or reject it *)
             LoopResultUpdateState
               {
-                current_state with
                 players =
                   Util.set players current_player_index
                     { current_player with letters = new_deck };
                 current_player_index =
                   (current_player_index + 1) mod List.length players;
                 entry = SelectStart;
+                board =
+                  {
+                    board with
+                    tiles =
+                      apply_entry_tiles board.tiles start direction word;
+                  };
               }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
@@ -216,6 +222,76 @@ let draw_board_gridlines ctx =
   range 0 width h_spacing (fun col ->
       LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light)
 
+let draw_board_cursor ctx (row, col) =
+  let row, col = ((row * v_spacing) + 1, (col * h_spacing) + 1) in
+  let style = { LTerm_style.none with reverse = Some true } in
+  try
+    LTerm_draw.set_style (LTerm_draw.point ctx row col) style;
+    LTerm_draw.set_style (LTerm_draw.point ctx row (col + 1)) style
+  with
+  | LTerm_draw.Out_of_bounds -> ()
+  | exn -> raise exn
+
+let draw_board_tiles ctx tiles =
+  Seq.iter
+    (fun (position, letter) ->
+      let row, col = position in
+      LTerm_draw.draw_char ctx
+        ((row * v_spacing) + 1)
+        ((col * h_spacing) + 1)
+        (Zed_char.of_utf8 (String.make 1 letter)))
+    (Hashtbl.to_seq tiles)
+
+let draw_entry_highlight ctx (start : position) (direction : direction)
+    =
+  let rec helper (row, col) (row_increment, col_increment) =
+    try
+      LTerm_draw.set_style
+        (LTerm_draw.point ctx
+           ((row * v_spacing) + 1)
+           ((col * h_spacing) + 1))
+        { LTerm_style.none with reverse = Some true };
+      LTerm_draw.set_style
+        (LTerm_draw.point ctx
+           ((row * v_spacing) + 1)
+           ((col * h_spacing) + 2))
+        { LTerm_style.none with reverse = Some true };
+      helper
+        (row + row_increment, col + col_increment)
+        (row_increment, col_increment)
+    with LTerm_draw.Out_of_bounds -> ()
+  in
+  let increment =
+    match direction with
+    | Up -> (-1, 0)
+    | Down -> (1, 0)
+    | Left -> (0, -1)
+    | Right -> (0, 1)
+  in
+  helper start increment
+
+let draw_entry_tiles
+    ctx
+    tiles
+    (start : position)
+    (direction : direction)
+    (word : char list) =
+  let letter_positions =
+    get_entry_letter_positions tiles start direction word
+  in
+  List.iter
+    (fun (letter, (row, col)) ->
+      LTerm_draw.draw_char ctx
+        ((row * v_spacing) + 1)
+        ((col * h_spacing) + 1)
+        (Zed_char.of_utf8 (String.make 1 letter))
+        ~style:
+          {
+            LTerm_style.none with
+            foreground = Some LTerm_style.magenta;
+          })
+    letter_positions
+
 (* draw letters to letter box given a player's letter deck [deck] *)
 let draw_letters ctx deck =
   let ctx_size = LTerm_draw.size ctx in
@@ -259,26 +335,6 @@ let draw_players ctx players current_player_index =
   in
 
   inner 0 players
-
-let draw_board_cursor ctx (row, col) =
-  let row, col = ((row * v_spacing) + 1, (col * h_spacing) + 1) in
-  let style = { LTerm_style.none with reverse = Some true } in
-  try
-    LTerm_draw.set_style (LTerm_draw.point ctx row col) style;
-    LTerm_draw.set_style (LTerm_draw.point ctx row (col + 1)) style
-  with
-  | LTerm_draw.Out_of_bounds -> ()
-  | exn -> raise exn
-
-let draw_board_tiles ctx tiles =
-  Seq.iter
-    (fun (position, letter) ->
-      let row, col = position in
-      LTerm_draw.draw_char ctx
-        ((row * v_spacing) + 1)
-        ((col * h_spacing) + 1)
-        (Zed_char.of_utf8 (String.make 1 letter)))
-    (Hashtbl.to_seq tiles)
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -337,7 +393,13 @@ let draw ui_terminal matrix (game_state : game_state) =
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      draw_board_gridlines ctx;
      draw_board_cursor ctx game_state.board.cursor;
-     draw_board_tiles ctx game_state.board.tiles);
+     draw_board_tiles ctx game_state.board.tiles;
+     match game_state.entry with
+     | AddLetter { start; direction; word; _ } ->
+         draw_entry_highlight ctx start direction;
+         draw_entry_tiles ctx game_state.board.tiles start direction
+           word
+     | _ -> ());
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in

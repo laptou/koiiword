@@ -1,10 +1,15 @@
 open Tile
 open Layout
+open Entry
 
 type board = {
   cursor : position;
   tiles : (position, char) Hashtbl.t;
 }
+
+type axis =
+  | Horizontal
+  | Vertical
 
 let new_board () = { cursor = (0, 0); tiles = Hashtbl.create 0 }
 
@@ -16,16 +21,6 @@ let set_tile board (tile : tile) =
 
 let get_tile board position =
   try Some (Hashtbl.find board.tiles position) with Not_found -> None
-
-type axis =
-  | Horizontal
-  | Vertical
-
-type direction =
-  | Up
-  | Down
-  | Left
-  | Right
 
 let get_words (board : board) : string list =
   let { tiles; _ } = board in
@@ -107,3 +102,16 @@ let get_words (board : board) : string list =
             word :: branch_words
     in
     search_words_at (0, 0) Vertical
+
+let apply_entry_tiles
+    tiles
+    (start : position)
+    (direction : direction)
+    (word : char list) =
+  let letter_positions =
+    get_entry_letter_positions tiles start direction word
+  in
+  List.iter
+    (fun (letter, position) -> Hashtbl.add tiles position letter)
+    letter_positions;
+  tiles
