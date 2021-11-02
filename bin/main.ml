@@ -34,6 +34,20 @@ let update_points old_words state =
   in
   new_word_points (get_words state.board) old_words
 
+(* [update_points state] is the number of points that should be added to
+   the current player's points field given the most recently inputted
+   word in state.*)
+let update_points2 board entry_state =
+  let rec new_word_points new_words words =
+    match new_words with
+    | [] -> 0
+    | h :: t ->
+        if List.mem h words = false then
+          word_points h + new_word_points t words
+        else new_word_points t words
+  in
+  new_word_points (get_words board) (get_words entry_state.board)
+
 (* [update_players state] is an updated list of players with their most
    current scores *)
 let update_players old_words state : player list =
@@ -45,11 +59,6 @@ let update_players old_words state : player list =
       current_player with
       points = current_player.points + update_points old_words state;
     }
-(*let rec new_list count = function | [] -> [] | h :: t -> if count =
-  state.current_player_index then { name = h.name; points =
-  update_points old_words state; letters = h.letters; } :: new_list
-  (count + 1) t else h :: new_list (count + 1) t in new_list 0
-  state.players*)
 
 (** The game loop. This loop runs for as long as the game is running,
     and changes the game's state in response to events. *)

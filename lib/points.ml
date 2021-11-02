@@ -21,9 +21,5 @@ let rec get_points ltr = function
 
 (* [word_points wrd] is the number of points for wrd*)
 let word_points wrd =
-  let rec accumulate_points letters =
-    match letters with
-    | [] -> 0
-    | h :: t -> get_points h letter_pts + accumulate_points t
-  in
-  accumulate_points (List.init (String.length wrd) (String.get wrd))
+  let letters = List.init (String.length wrd) (String.get wrd) in
+  List.fold_right (fun l acc -> get_points l letter_pts + acc) letters 0
