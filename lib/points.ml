@@ -18,3 +18,12 @@ let rec get_points ltr = function
       match h with
       | let_lst, pt ->
           if List.mem ltr let_lst then pt else get_points ltr t)
+
+(* [word_points wrd] is the number of points for wrd*)
+let word_points wrd =
+  let rec accumulate_points letters =
+    match letters with
+    | [] -> 0
+    | h :: t -> get_points h letter_pts + accumulate_points t
+  in
+  accumulate_points (List.init (String.length wrd) (String.get wrd))
