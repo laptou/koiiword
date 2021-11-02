@@ -34,20 +34,6 @@ let update_points old_words state =
   in
   new_word_points (get_words state.board) old_words
 
-(* [update_points state] is the number of points that should be added to
-   the current player's points field given the most recently inputted
-   word in state.*)
-let update_points2 board entry_state =
-  let rec new_word_points new_words words =
-    match new_words with
-    | [] -> 0
-    | h :: t ->
-        if List.mem h words = false then
-          word_points h + new_word_points t words
-        else new_word_points t words
-  in
-  new_word_points (get_words board) (get_words entry_state.board)
-
 (* [update_players state] is an updated list of players with their most
    current scores *)
 let update_players old_words state : player list =
@@ -90,11 +76,6 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
 
-  (*| LTerm_event.Key { code = Enter; _ } -> let old_words =
-    current_state.words in LoopResultUpdateState { current_state with
-    players = update_players old_words current_state;
-    current_player_index = (current_player_index + 1) mod List.length
-    players; words = get_words board; }*)
   let { board; players; entry; current_player_index } = current_state in
   let { cursor; _ } = board in
   let loop_result : loop_result =
@@ -170,12 +151,15 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             in
             let current_deck = current_player.letters in
             let new_deck = refill_deck current_deck in
+            let old_words = get_words current_state.board in
             (* TODO: validate the word they just created and either
                apply it or reject it *)
             LoopResultUpdateState
               {
                 players =
-                  Util.set players current_player_index
+                  Util.set
+                    (update_players old_words current_state)
+                    current_player_index
                     { current_player with letters = new_deck };
                 current_player_index =
                   (current_player_index + 1) mod List.length players;

@@ -8,4 +8,3 @@ type game_state = {
   entry : entry_state;
   current_player_index : int;
 }
-
