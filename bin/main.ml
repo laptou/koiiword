@@ -8,6 +8,7 @@ open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
 open Koiiword.Entry
+open Koiiword.Dictionary
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -48,7 +49,9 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players; entry; current_player_index } = current_state in
+  let { board; players; entry; current_player_index; dict } =
+    current_state
+  in
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
@@ -117,29 +120,46 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     entry = SelectDirection { start = cursor };
                   }
             | _ -> LoopResultContinue)
-        | AddLetter { start; direction; word; _ } ->
+        | AddLetter { start; direction; word; deck; _ } ->
             let current_player =
               List.nth players current_player_index
             in
             let current_deck = current_player.letters in
             let new_deck = refill_deck current_deck in
-            (* TODO: validate the word they just created and either
-               apply it or reject it *)
-            LoopResultUpdateState
-              {
-                players =
-                  Util.set players current_player_index
-                    { current_player with letters = new_deck };
-                current_player_index =
-                  (current_player_index + 1) mod List.length players;
-                entry = SelectStart;
-                board =
-                  {
-                    board with
-                    tiles =
-                      apply_entry_tiles board.tiles start direction word;
-                  };
-              }
+            (* Create string version of word char list *)
+            let str_word =
+              List.fold_right
+                (fun x acc -> String.make 1 x ^ acc)
+                word ""
+            in
+
+            if is_word_valid dict str_word then
+              (* If word is valid than accept it*)
+              LoopResultUpdateState
+                {
+                  current_state with
+                  players =
+                    Util.set players current_player_index
+                      { current_player with letters = new_deck };
+                  current_player_index =
+                    (current_player_index + 1) mod List.length players;
+                  entry = SelectStart;
+                  board =
+                    {
+                      board with
+                      tiles =
+                        apply_entry_tiles board.tiles start direction
+                          word;
+                    };
+                }
+            else
+              (* If word is invalid, return their original deck and have
+                 them back in reselect state*)
+              LoopResultUpdateState
+                {
+                  (with_deck current_state deck) with
+                  entry = SelectStart;
+                }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
         match entry with
@@ -423,6 +443,7 @@ let draw ui_terminal matrix (game_state : game_state) =
 let main () =
   Random.self_init ();
 
+  let dictionary = dict_from_file "dictionary/english_dict.txt" in
   (* Define players *)
   let player1 = { name = "P1"; points = 50; letters = new_deck () } in
   let player2 = { name = "P2"; points = 30; letters = new_deck () } in
@@ -439,6 +460,7 @@ let main () =
         players = sort_players player_lst;
         entry = SelectStart;
         current_player_index = 0;
+        dict = dictionary;
       }
   in
 

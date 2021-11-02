@@ -8,6 +8,7 @@ let super_suite =
       Layout_test.suite;
       State_test.suite;
       Board_test.suite;
+      Dictionary_test.suite;
     ]
 
 let _ = run_test_tt_main super_suite
