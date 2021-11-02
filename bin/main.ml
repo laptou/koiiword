@@ -8,6 +8,7 @@ open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
 open Koiiword.Tile
+open Koiiword.Points
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -19,13 +20,44 @@ type loop_result =
   | LoopResultUpdateState of game_state
   | LoopResultExit
 
+(* [update_points state] is the number of points that should be added to
+   the current player's points field given the most recently inputted
+   word in state.*)
+let update_points old_words state =
+  let rec new_word_points new_words words =
+    match new_words with
+    | [] -> 0
+    | h :: t ->
+        if List.mem h words = false then
+          word_points h + new_word_points t words
+        else new_word_points t words
+  in
+  new_word_points (get_words state.board) old_words
+
+(* [update_players state] is an updated list of players with their most
+   current scores *)
+let update_players old_words state : player list =
+  let current_player =
+    List.nth state.players state.current_player_index
+  in
+  Util.set state.players state.current_player_index
+    {
+      current_player with
+      points = current_player.points + update_points old_words state;
+    }
+(*let rec new_list count = function | [] -> [] | h :: t -> if count =
+  state.current_player_index then { name = h.name; points =
+  update_points old_words state; letters = h.letters; } :: new_list
+  (count + 1) t else h :: new_list (count + 1) t in new_list 0
+  state.players*)
+
 (** The game loop. This loop runs for as long as the game is running,
     and changes the game's state in response to events. *)
 let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players; current_player_index } = current_state in
+  let { board; players; current_player_index; _ } = current_state in
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
@@ -54,11 +86,14 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             board = { board with cursor = (fst cursor, snd cursor + 1) };
           }
     | LTerm_event.Key { code = Enter; _ } ->
+        let old_words = current_state.words in
         LoopResultUpdateState
           {
             current_state with
+            players = update_players old_words current_state;
             current_player_index =
               (current_player_index + 1) mod List.length players;
+            words = get_words board;
           }
     | LTerm_event.Key { code = Escape; _ } -> LoopResultExit
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
@@ -144,8 +179,8 @@ let player_display player =
   String.concat " : " [ player.name; string_of_int player.points ]
 
 (* draw players to players box given a list of game_state.players *)
-let draw_players ctx players current_player_index =
-  let num_players = List.length players in
+let draw_players ctx state =
+  let num_players = List.length state.players in
   let rec inner idx = function
     | [] -> ()
     | h :: t ->
@@ -160,11 +195,11 @@ let draw_players ctx players current_player_index =
           ~style:
             {
               LTerm_style.none with
-              reverse = Some (idx = current_player_index);
+              reverse = Some (idx = state.current_player_index);
             }
   in
 
-  inner 0 players
+  inner 0 state.players
 
 let draw_board_cursor ctx (row, col) =
   let row, col = ((row * v_spacing) + 1, (col * h_spacing) + 1) in
@@ -247,13 +282,11 @@ let draw ui_terminal matrix (game_state : game_state) =
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
      let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     draw_players ctx players current_player_index);
+     draw_players ctx game_state);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
      let _ = with_frame ctx " letters " LTerm_draw.Heavy in
-     let current_player =
-       List.nth game_state.players current_player_index
-     in
+     let current_player = List.nth players current_player_index in
      draw_letters ctx current_player.letters);
     (* draw prompt box *)
     (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
@@ -268,10 +301,10 @@ let main () =
   Random.self_init ();
 
   (* Define players *)
-  let player1 = { name = "P1"; points = 50; letters = new_deck () } in
-  let player2 = { name = "P2"; points = 30; letters = new_deck () } in
-  let player3 = { name = "P3"; points = 30; letters = new_deck () } in
-  let player4 = { name = "P4"; points = 30; letters = new_deck () } in
+  let player1 = { name = "P1"; points = 0; letters = new_deck () } in
+  let player2 = { name = "P2"; points = 0; letters = new_deck () } in
+  let player3 = { name = "P3"; points = 0; letters = new_deck () } in
+  let player4 = { name = "P4"; points = 0; letters = new_deck () } in
   let player_lst = [ player1; player2; player3; player4 ] in
 
   let%lwt term = Lazy.force LTerm.stdout in
@@ -282,6 +315,7 @@ let main () =
         board = { cursor = (0, 0); tiles = Hashtbl.create 100 };
         players = sort_players player_lst;
         current_player_index = 0;
+        words = [];
       }
   in
 
