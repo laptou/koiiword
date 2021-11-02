@@ -29,5 +29,4 @@ type game_state = {
   players : player list;
   entry : entry_state;
   current_player_index : int;
-  words : string list;
 }
