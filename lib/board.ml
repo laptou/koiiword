@@ -17,16 +17,22 @@ let set_tile board (tile : tile) =
 let get_tile board position =
   try Some (Hashtbl.find board.tiles position) with Not_found -> None
 
-type direction =
+type axis =
   | Horizontal
   | Vertical
+
+type direction =
+  | Up
+  | Down
+  | Left
+  | Right
 
 let get_words (board : board) : string list =
   let { tiles; _ } = board in
   if Hashtbl.length tiles = 0 then []
   else
     let seen = Hashtbl.create (Hashtbl.length tiles) in
-    let rec partial_word_at (position : position) (direction : direction) :
+    let rec partial_word_at (position : position) (axis : axis) :
         string * string list =
       let row, col = position in
       match Hashtbl.find_opt tiles position with
@@ -37,7 +43,7 @@ let get_words (board : board) : string list =
           let below = (row + 1, col) in
           let left = (row, col - 1) in
           let right = (row, col + 1) in
-          match direction with
+          match axis with
           | Vertical ->
               let partial_word, branch_words =
                 partial_word_at below Vertical
@@ -79,21 +85,25 @@ let get_words (board : board) : string list =
               in
 
               (current_word, branch_words))
-    and search_words_at (position : position) (direction : direction) :
+    and search_words_at (position : position) (axis : axis) :
         string list =
       let row, col = position in
       let above = (row - 1, col) in
       let left = (row, col - 1) in
-      match direction with
+      match axis with
       | Vertical ->
           if Hashtbl.mem tiles above then search_words_at above Vertical
           else
-            let word, branch_words = partial_word_at position Vertical in
+            let word, branch_words =
+              partial_word_at position Vertical
+            in
             word :: branch_words
       | Horizontal ->
           if Hashtbl.mem tiles left then search_words_at left Horizontal
           else
-            let word, branch_words = partial_word_at position Horizontal in
+            let word, branch_words =
+              partial_word_at position Horizontal
+            in
             word :: branch_words
     in
     search_words_at (0, 0) Vertical

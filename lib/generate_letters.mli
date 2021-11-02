@@ -12,15 +12,13 @@ val new_deck : unit -> letter_deck
     frequencies determined using
     https://en.wikipedia.org/wiki/Scrabble_letter_distributions*)
 
-val replace_letter_biased : char -> letter_deck -> letter_deck
-(** [replace_letter_biased letter deck] removes the first instance of
-    [letter] from [deck] and replaces it with another letter according
-    to the probability distribution. Raises [Not_found] if [deck] does
-    not contain [letter]*)
+val consume_letter : char -> letter_deck -> letter_deck
 
-val random_letter : unit -> char
+val refill_deck : letter_deck -> letter_deck
 
-val realistic_letter : unit -> char
+val uniform_random_letter : unit -> char
+
+val realistic_random_letter : unit -> char
 
 val deck_to_letters : letter_deck -> char list
 
