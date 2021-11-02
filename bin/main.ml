@@ -44,6 +44,7 @@ let update_players old_words state : player list =
     {
       current_player with
       points = current_player.points + update_points old_words state;
+      letters = refill_deck current_player.letters;
     }
 
 let with_input_direction
@@ -76,7 +77,9 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
 
-  let { board; players; entry; current_player_index } = current_state in
+  let { board; players; entry; current_player_index; _ } =
+    current_state
+  in
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
@@ -146,21 +149,16 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   }
             | _ -> LoopResultContinue)
         | AddLetter { start; direction; word; _ } ->
-            let current_player =
-              List.nth players current_player_index
-            in
-            let current_deck = current_player.letters in
-            let new_deck = refill_deck current_deck in
-            let old_words = get_words current_state.board in
+            let old_words = current_state.words in
+            (*let current_player = List.nth players current_player_index
+              in*)
+            (*let current_deck = current_player.letters in*)
+            (*let new_deck = refill_deck current_deck in*)
             (* TODO: validate the word they just created and either
                apply it or reject it *)
             LoopResultUpdateState
               {
-                players =
-                  Util.set
-                    (update_players old_words current_state)
-                    current_player_index
-                    { current_player with letters = new_deck };
+                players = update_players old_words current_state;
                 current_player_index =
                   (current_player_index + 1) mod List.length players;
                 entry = SelectStart;
@@ -170,6 +168,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     tiles =
                       apply_entry_tiles board.tiles start direction word;
                   };
+                words = get_words board;
               }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
@@ -468,6 +467,7 @@ let main () =
         players = sort_players player_lst;
         entry = SelectStart;
         current_player_index = 0;
+        words = [];
       }
   in
 
