@@ -70,6 +70,48 @@ let with_deck (current_state : game_state) (new_deck : letter_deck) =
         { current_player with letters = new_deck };
   }
 
+let with_pan (current_state : game_state) (delta_pan : position) =
+  {
+    current_state with
+    board =
+      {
+        current_state.board with
+        pan =
+          ( fst current_state.board.pan + fst delta_pan,
+            snd current_state.board.pan + snd delta_pan );
+      };
+  }
+
+let with_cursor (current_state : game_state) (delta_cursor : position) =
+  let pan_threshold = 3 in
+  let new_state =
+    {
+      current_state with
+      board =
+        {
+          current_state.board with
+          cursor =
+            ( fst current_state.board.cursor + fst delta_cursor,
+              snd current_state.board.cursor + snd delta_cursor );
+        };
+    }
+  in
+  (* if the cursor is more than [pan_threshold] units away from the
+     panning center, move the panning center to catch up *)
+  let row_delta =
+    fst new_state.board.cursor - fst new_state.board.pan
+  in
+  let row_delta =
+    max 0 (abs row_delta - pan_threshold) * Util.sign row_delta
+  in
+  let col_delta =
+    snd new_state.board.cursor - snd new_state.board.pan
+  in
+  let col_delta =
+    max 0 (abs col_delta - pan_threshold) * Util.sign col_delta
+  in
+  with_pan new_state (row_delta, col_delta)
+
 (** The game loop. This loop runs for as long as the game is running,
     and changes the game's state in response to events. *)
 let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
@@ -84,12 +126,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     | LTerm_event.Key { code = Up; _ } -> (
         match entry with
         | SelectStart ->
-            LoopResultUpdateState
-              {
-                current_state with
-                board =
-                  { board with cursor = (fst cursor - 1, snd cursor) };
-              }
+            LoopResultUpdateState (with_cursor current_state (-1, 0))
         | SelectDirection { start } ->
             LoopResultUpdateState
               (with_input_direction current_state start Up)
@@ -97,12 +134,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     | LTerm_event.Key { code = Down; _ } -> (
         match entry with
         | SelectStart ->
-            LoopResultUpdateState
-              {
-                current_state with
-                board =
-                  { board with cursor = (fst cursor + 1, snd cursor) };
-              }
+            LoopResultUpdateState (with_cursor current_state (1, 0))
         | SelectDirection { start } ->
             LoopResultUpdateState
               (with_input_direction current_state start Down)
@@ -110,12 +142,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     | LTerm_event.Key { code = Left; _ } -> (
         match entry with
         | SelectStart ->
-            LoopResultUpdateState
-              {
-                current_state with
-                board =
-                  { board with cursor = (fst cursor, snd cursor - 1) };
-              }
+            LoopResultUpdateState (with_cursor current_state (0, -1))
         | SelectDirection { start } ->
             LoopResultUpdateState
               (with_input_direction current_state start Left)
@@ -123,12 +150,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     | LTerm_event.Key { code = Right; _ } -> (
         match entry with
         | SelectStart ->
-            LoopResultUpdateState
-              {
-                current_state with
-                board =
-                  { board with cursor = (fst cursor, snd cursor + 1) };
-              }
+            LoopResultUpdateState (with_cursor current_state (0, 1))
         | SelectDirection { start } ->
             LoopResultUpdateState
               (with_input_direction current_state start Right)
@@ -136,16 +158,29 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     | LTerm_event.Key { code = Enter; _ } -> (
         match entry with
         | SelectStart -> (
-            (* only allow the player to start a word here if there is no
-               tile at this location*)
-            match get_tile board cursor with
-            | None ->
+            if
+              (* if this is the first tile the user is placing, they
+                 have to place it at (0, 0) *)
+              Hashtbl.length board.tiles = 0
+            then
+              if cursor = (0, 0) then
                 LoopResultUpdateState
                   {
                     current_state with
                     entry = SelectDirection { start = cursor };
                   }
-            | _ -> LoopResultContinue)
+              else LoopResultContinue
+            else
+              (* only allow the player to start a word here if there is
+                 no tile at this location *)
+              match get_tile board cursor with
+              | None ->
+                  LoopResultUpdateState
+                    {
+                      current_state with
+                      entry = SelectDirection { start = cursor };
+                    }
+              | _ -> LoopResultContinue)
         | AddLetter { start; direction; word; _ } ->
             let old_words = get_words board in
             let new_tiles =
@@ -223,7 +258,18 @@ let h_spacing = 3
 
 let v_spacing = 2
 
-let draw_board_gridlines ctx =
+(* [get_tile_screen_position ctx pan position] returns the position
+   inside of [ctx] where a certain tile should be drawn given the
+   panning of the board. *)
+let get_tile_screen_position ctx (pan_row, pan_col) (row, col) =
+  let ctx_size = LTerm_draw.size ctx in
+  let center_row = ctx_size.rows / v_spacing / 2 in
+  let center_col = ctx_size.cols / h_spacing / 2 in
+  let row = row - pan_row + center_row in
+  let col = col - pan_col + center_col in
+  (row * v_spacing, col * h_spacing)
+
+let draw_board_gridlines ctx pan =
   let rec range start stop step fn =
     fn start;
     if start + step < stop then range (start + step) stop step fn
@@ -241,70 +287,80 @@ let draw_board_gridlines ctx =
 
   (* draw vlines *)
   range 0 width h_spacing (fun col ->
-      LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light)
+      LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light);
 
-let draw_board_cursor ctx (row, col) =
-  let row, col = ((row * v_spacing) + 1, (col * h_spacing) + 1) in
+  (* draw center star *)
+  let row, col = get_tile_screen_position ctx pan (0, 0) in
+  LTerm_draw.draw_char ctx (row + 1) (col + 1) (Zed_char.of_utf8 "*")
+    ~style:
+      {
+        LTerm_style.none with
+        foreground = Some LTerm_style.blue;
+        reverse = Some true;
+      }
+
+let draw_board_cursor ctx pan cursor =
+  let row, col = get_tile_screen_position ctx pan cursor in
   let style = { LTerm_style.none with reverse = Some true } in
   try
-    LTerm_draw.set_style (LTerm_draw.point ctx row col) style;
-    LTerm_draw.set_style (LTerm_draw.point ctx row (col + 1)) style
+    LTerm_draw.set_style
+      (LTerm_draw.point ctx (row + 1) (col + 1))
+      style;
+    LTerm_draw.set_style
+      (LTerm_draw.point ctx (row + 1) (col + 2))
+      style
   with
   | LTerm_draw.Out_of_bounds -> ()
   | exn -> raise exn
 
-let draw_board_tiles ctx tiles =
+let draw_board_tiles ctx pan tiles =
   Seq.iter
     (fun (position, letter) ->
-      let row, col = position in
-      LTerm_draw.draw_char ctx
-        ((row * v_spacing) + 1)
-        ((col * h_spacing) + 1)
+      let row, col = get_tile_screen_position ctx pan position in
+      LTerm_draw.draw_char ctx (row + 1) (col + 1)
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
 
-let draw_entry_highlight ctx (start : position) (direction : direction)
-    =
-  let rec helper (row, col) (row_increment, col_increment) =
+let draw_entry_highlight
+    ctx
+    pan
+    (start : position)
+    (direction : direction) =
+  let row_increment, col_increment =
+    match direction with
+    | Up -> (-v_spacing, 0)
+    | Down -> (v_spacing, 0)
+    | Left -> (0, -h_spacing)
+    | Right -> (0, h_spacing)
+  in
+  let row, col = get_tile_screen_position ctx pan start in
+  let rec helper (row, col) =
     try
       LTerm_draw.set_style
-        (LTerm_draw.point ctx
-           ((row * v_spacing) + 1)
-           ((col * h_spacing) + 1))
+        (LTerm_draw.point ctx (row + 1) (col + 1))
         { LTerm_style.none with reverse = Some true };
       LTerm_draw.set_style
-        (LTerm_draw.point ctx
-           ((row * v_spacing) + 1)
-           ((col * h_spacing) + 2))
+        (LTerm_draw.point ctx (row + 1) (col + 2))
         { LTerm_style.none with reverse = Some true };
-      helper
-        (row + row_increment, col + col_increment)
-        (row_increment, col_increment)
+      helper (row + row_increment, col + col_increment)
     with LTerm_draw.Out_of_bounds -> ()
   in
-  let increment =
-    match direction with
-    | Up -> (-1, 0)
-    | Down -> (1, 0)
-    | Left -> (0, -1)
-    | Right -> (0, 1)
-  in
-  helper start increment
+  helper (row, col)
 
 let draw_entry_tiles
     ctx
+    pan
     tiles
     (start : position)
     (direction : direction)
     (word : char list) =
   let letter_positions =
-    get_entry_letter_positions tiles start direction word
+    get_entry_letter_board_positions tiles start direction word
   in
   List.iter
-    (fun (letter, (row, col)) ->
-      LTerm_draw.draw_char ctx
-        ((row * v_spacing) + 1)
-        ((col * h_spacing) + 1)
+    (fun (letter, position) ->
+      let row, col = get_tile_screen_position ctx pan position in
+      LTerm_draw.draw_char ctx (row + 1) (col + 1)
         (Zed_char.of_utf8 (String.make 1 letter))
         ~style:
           {
@@ -412,13 +468,14 @@ let draw ui_terminal matrix (game_state : game_state) =
     let current_player_index = game_state.current_player_index in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
-     draw_board_gridlines ctx;
-     draw_board_cursor ctx game_state.board.cursor;
-     draw_board_tiles ctx game_state.board.tiles;
+     let pan = game_state.board.pan in
+     draw_board_gridlines ctx pan;
+     draw_board_cursor ctx pan game_state.board.cursor;
+     draw_board_tiles ctx pan game_state.board.tiles;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
-         draw_entry_highlight ctx start direction;
-         draw_entry_tiles ctx game_state.board.tiles start direction
+         draw_entry_highlight ctx pan start direction;
+         draw_entry_tiles ctx pan game_state.board.tiles start direction
            word
      | _ -> ());
     (* draw players box *)
@@ -454,7 +511,7 @@ let main () =
   let game_state : game_state ref =
     ref
       {
-        board = { cursor = (0, 0); tiles = Hashtbl.create 100 };
+        board = new_board ();
         players = sort_players player_lst;
         entry = SelectStart;
         current_player_index = 0;
