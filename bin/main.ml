@@ -155,7 +155,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                       entry = SelectDirection { start = cursor };
                     }
               | _ -> LoopResultContinue)
-        | AddLetter { start; direction; word; _ } ->
+        | AddLetter { start; direction; word; deck; _ } ->
             let current_player =
               List.nth players current_player_index
             in
