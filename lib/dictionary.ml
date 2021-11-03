@@ -1,4 +1,4 @@
-type dictionary = (string, string) Hashtbl.t
+type dictionary = (string, unit) Hashtbl.t
 (** type [dictionary] is the type for the HashTable containing the
     dictionary contents (string, string) [(word, word)] *)
 
@@ -10,7 +10,7 @@ let dict_from_file (file_name : string) : dictionary =
   try
     while true do
       let line = String.uppercase_ascii (String.trim (input_line ic)) in
-      Hashtbl.add ht line line
+      Hashtbl.add ht line ()
     done;
     ht
   with End_of_file ->

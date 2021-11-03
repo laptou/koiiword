@@ -1,4 +1,4 @@
-type dictionary = (string, string) Hashtbl.t
+type dictionary = (string, unit) Hashtbl.t
 (** type [dictionary] is the type for the HashTable containing the
     dictionary contents *)
 
