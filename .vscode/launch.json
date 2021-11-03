@@ -12,7 +12,8 @@
       "stopOnEntry": false,
       "yieldSteps": 4096,
       "onlyDebugGlob": "<${workspaceFolder}/**/*>",
-      "preLaunchTask": "dune build"
+      "preLaunchTask": "dune build",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }
