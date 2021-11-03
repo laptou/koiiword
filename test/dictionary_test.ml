@@ -17,7 +17,9 @@ let test_word_valid
     (expected_output : bool) : test =
   name >:: fun _ ->
   assert_equal
-    (is_word_valid (dict_from_file file_name) input_words)
+    (List.for_all
+       (is_word_valid (dict_from_file file_name))
+       input_words)
     expected_output
 
 let test_cases =

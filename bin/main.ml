@@ -156,43 +156,44 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     }
               | _ -> LoopResultContinue)
         | AddLetter { start; direction; word; deck; _ } ->
-            let current_player =
-              List.nth players current_player_index
-            in
-            let current_deck = current_player.letters in
-            let new_deck = refill_deck current_deck in
-            let old_tiles = Hashtbl.copy board.tiles in
-            let new_tiles =
-              apply_entry_tiles board.tiles start direction word
-            in
-
-            (* Create string version of word char list *)
-            if
-              is_word_valid dict
-                (get_words { board with tiles = new_tiles })
-              && List.length word <> 0
-            then
-              (* If word is valid than accept it*)
-              LoopResultUpdateState
-                {
-                  current_state with
-                  players =
-                    Util.set players current_player_index
-                      { current_player with letters = new_deck };
-                  current_player_index =
-                    (current_player_index + 1) mod List.length players;
-                  entry = SelectStart;
-                  board = { board with tiles = new_tiles };
-                }
+            if List.length word < 1 then LoopResultContinue
             else
-              (* If word is invalid, return their original deck and have
-                 them back in reselect state*)
-              LoopResultUpdateState
-                {
-                  (with_deck current_state deck) with
-                  entry = SelectStart;
-                  board = { board with tiles = old_tiles };
-                }
+              let new_tiles =
+                apply_entry_tiles
+                  (Hashtbl.copy board.tiles)
+                  start direction word
+              in
+              let new_words =
+                get_words { board with tiles = new_tiles }
+              in
+
+              (* get words from char list *)
+              if List.for_all (is_word_valid dict) new_words then
+                (* if all words are valid then accept it *)
+                let current_player =
+                  List.nth players current_player_index
+                in
+                let current_deck = current_player.letters in
+                let new_deck = refill_deck current_deck in
+                LoopResultUpdateState
+                  {
+                    current_state with
+                    players =
+                      Util.set players current_player_index
+                        { current_player with letters = new_deck };
+                    current_player_index =
+                      (current_player_index + 1) mod List.length players;
+                    entry = SelectStart;
+                    board = { board with tiles = new_tiles };
+                  }
+              else
+                (* if any word is invalid, return their original deck
+                   and put them back in reselect state *)
+                LoopResultUpdateState
+                  {
+                    (with_deck current_state deck) with
+                    entry = SelectStart;
+                  }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
         match entry with

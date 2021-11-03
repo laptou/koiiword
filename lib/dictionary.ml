@@ -20,10 +20,6 @@ let dict_from_file (file_name : string) : dictionary =
 (** [is_word_valid] takes in a [dictionary] dictionary and a [word]
     string and returns true if [word] is in [dictionary] and false
     otherwise *)
-let rec is_word_valid (dict : dictionary) (word_lst : string list) =
-  match word_lst with
-  | [] -> true
-  | h :: t ->
-      if Hashtbl.mem dict (String.uppercase_ascii h) then
-        is_word_valid dict t
-      else false
+let is_word_valid (dict : dictionary) (word : string) =
+  Hashtbl.mem dict (String.uppercase_ascii word)
+
