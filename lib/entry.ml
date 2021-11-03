@@ -28,7 +28,8 @@ type entry_state =
       word : char list;
     }
 
-let get_entry_letter_positions
+(** gets the position of the letters in the draft entry on the board *)
+let get_entry_letter_board_positions
     tiles
     (start : position)
     (direction : direction)
