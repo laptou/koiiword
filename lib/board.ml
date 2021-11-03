@@ -2,16 +2,29 @@ open Tile
 open Layout
 open Entry
 
+type multiplier =
+  | DoubleLet
+  | DoubleWord
+  | TripleLet
+  | TripleWord
+  | Normal
+
 type board = {
   cursor : position;
   tiles : (position, char) Hashtbl.t;
+  multipliers : (position, multiplier) Hashtbl.t;
 }
 
 type axis =
   | Horizontal
   | Vertical
 
-let new_board () = { cursor = (0, 0); tiles = Hashtbl.create 0 }
+let new_board () =
+  {
+    cursor = (0, 0);
+    tiles = Hashtbl.create 0;
+    multipliers = Hashtbl.create 0;
+  }
 
 let set_tile board (tile : tile) =
   let ch, position = tile in
@@ -22,23 +35,13 @@ let set_tile board (tile : tile) =
 let get_tile board position =
   try Some (Hashtbl.find board.tiles position) with Not_found -> None
 
-type multiplier =
-  | DoubleLet
-  | DoubleWord
-  | TripleLet
-  | TripleWord
-  | Normal
-
 let print_multi (m_type : multiplier) =
-  let s =
-    match m_type with
-    | DoubleLet -> "DL"
-    | DoubleWord -> "DW"
-    | TripleLet -> "TL"
-    | TripleWord -> "TW"
-    | Normal -> ""
-  in
-  print_string s
+  match m_type with
+  | DoubleLet -> "DL"
+  | DoubleWord -> "DW"
+  | TripleLet -> "TL"
+  | TripleWord -> "TW"
+  | Normal -> ""
 
 let tw_list (grid : grid_layout_spec) =
   let width = List.length grid.cols in
@@ -123,7 +126,7 @@ let rec add_multipliers
       Hashtbl.add multipliers h multi;
       add_multipliers multipliers multi t
 
-let multipliers (grid : grid_layout_spec) =
+let multipliers_lst (grid : grid_layout_spec) =
   let premiums_table = Hashtbl.create 50 in
   add_multipliers premiums_table DoubleLet (dl_list grid);
   add_multipliers premiums_table DoubleWord (dw_list grid);

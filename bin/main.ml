@@ -242,7 +242,15 @@ let draw_board_tiles ctx tiles =
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
 
-let draw_multipliers multipliers = Seq.iter print_multi multipliers
+let draw_multipliers ctx grid =
+  Seq.iter
+    (fun (position, multiplier) ->
+      let row, col = position in
+      LTerm_draw.draw_string ctx
+        ((row * v_spacing) + 1)
+        ((col * h_spacing) + 1)
+        (Zed_string.of_utf8 (print_multi multiplier)))
+    (Hashtbl.to_seq (multipliers_lst grid))
 
 let draw_entry_highlight ctx (start : position) (direction : direction)
     =
@@ -389,6 +397,7 @@ let draw ui_terminal matrix (game_state : game_state) =
     in
     let ctx = LTerm_draw.sub ctx rect in
     let players = game_state.players in
+    let grid = layout_spec in
     (* draw board *)
     let current_player_index = game_state.current_player_index in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
@@ -396,6 +405,7 @@ let draw ui_terminal matrix (game_state : game_state) =
      draw_board_gridlines ctx;
      draw_board_cursor ctx game_state.board.cursor;
      draw_board_tiles ctx game_state.board.tiles;
+     draw_multipliers ctx grid;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
          draw_entry_highlight ctx start direction;
@@ -437,7 +447,12 @@ let main () =
   let game_state : game_state ref =
     ref
       {
-        board = { cursor = (0, 0); tiles = Hashtbl.create 100 };
+        board =
+          {
+            cursor = (0, 0);
+            tiles = Hashtbl.create 100;
+            multipliers = Hashtbl.create 100;
+          };
         players = sort_players player_lst;
         entry = SelectStart;
         current_player_index = 0;
