@@ -10,7 +10,11 @@ type multiplier =
   | Normal
 
 type board = {
+  (* the location of the user's cursor *)
   cursor : position;
+  (* the location that is shown at the center of the screen *)
+  pan : position;
+  (* the tiles on the board *)
   tiles : (position, char) Hashtbl.t;
   multipliers : (position, multiplier) Hashtbl.t;
 }
@@ -23,6 +27,7 @@ let new_board () =
   {
     cursor = (0, 0);
     tiles = Hashtbl.create 0;
+    pan = (0,0)
     multipliers = Hashtbl.create 0;
   }
 
@@ -221,7 +226,7 @@ let apply_entry_tiles
     (direction : direction)
     (word : char list) =
   let letter_positions =
-    get_entry_letter_positions tiles start direction word
+    get_entry_letter_board_positions tiles start direction word
   in
   List.iter
     (fun (letter, position) -> Hashtbl.add tiles position letter)
