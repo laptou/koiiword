@@ -22,10 +22,6 @@ let set_tile board (tile : tile) =
 let get_tile board position =
   try Some (Hashtbl.find board.tiles position) with Not_found -> None
 
-type direction =
-  | Horizontal
-  | Vertical
-
 type multiplier =
   | DoubleLet
   | DoubleWord
