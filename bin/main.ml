@@ -300,7 +300,6 @@ let draw_board_tiles ctx pan tiles =
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
 
-
 let draw_multipliers ctx grid =
   Seq.iter
     (fun (position, multiplier) ->
@@ -325,7 +324,6 @@ let draw_entry_highlight
   in
   let row, col = get_tile_screen_position ctx pan start in
   let rec helper (row, col) =
-
     try
       LTerm_draw.set_style
         (LTerm_draw.point ctx (row + 1) (col + 1))
@@ -455,15 +453,16 @@ let draw ui_terminal matrix (game_state : game_state) =
     in
     let ctx = LTerm_draw.sub ctx rect in
     let players = game_state.players in
-    let grid = layout_spec in
     (* draw board *)
     let current_player_index = game_state.current_player_index in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      let pan = game_state.board.pan in
+     let grid = layout_spec in
      draw_board_gridlines ctx pan;
      draw_board_cursor ctx pan game_state.board.cursor;
      draw_board_tiles ctx pan game_state.board.tiles;
+     draw_multipliers ctx grid;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
          draw_entry_highlight ctx pan start direction;

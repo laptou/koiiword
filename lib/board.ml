@@ -27,7 +27,7 @@ let new_board () =
   {
     cursor = (0, 0);
     tiles = Hashtbl.create 0;
-    pan = (0,0)
+    pan = (0, 0);
     multipliers = Hashtbl.create 0;
   }
 
