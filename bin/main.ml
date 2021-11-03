@@ -126,14 +126,17 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             in
             let current_deck = current_player.letters in
             let new_deck = refill_deck current_deck in
-            (* Create string version of word char list *)
-            let str_word =
-              List.fold_right
-                (fun x acc -> String.make 1 x ^ acc)
-                word ""
+            let old_tiles = Hashtbl.copy board.tiles in
+            let new_tiles =
+              apply_entry_tiles board.tiles start direction word
             in
 
-            if is_word_valid dict str_word then
+            (* Create string version of word char list *)
+            if
+              is_word_valid dict
+                (get_words { board with tiles = new_tiles })
+              && List.length word <> 0
+            then
               (* If word is valid than accept it*)
               LoopResultUpdateState
                 {
@@ -144,13 +147,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   current_player_index =
                     (current_player_index + 1) mod List.length players;
                   entry = SelectStart;
-                  board =
-                    {
-                      board with
-                      tiles =
-                        apply_entry_tiles board.tiles start direction
-                          word;
-                    };
+                  board = { board with tiles = new_tiles };
                 }
             else
               (* If word is invalid, return their original deck and have
@@ -159,6 +156,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 {
                   (with_deck current_state deck) with
                   entry = SelectStart;
+                  board = { board with tiles = old_tiles };
                 }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
