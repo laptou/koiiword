@@ -164,7 +164,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   start direction word
               in
               let new_words =
-                get_words { board with tiles = new_tiles }
+                get_words_deep { board with tiles = new_tiles }
               in
 
               (* get words from char list *)
