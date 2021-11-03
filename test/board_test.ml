@@ -52,27 +52,51 @@ let pp_board (board : board) =
   in
   pp_rows min_row
 
-let get_words_test (board : board) (expected : string list) : test =
+let get_words_deep_test (board : board) (expected : string list) : test
+    =
   let test_name =
     Printf.sprintf "board has words %s" (pp_list pp_string expected)
   in
   test_name >:: fun _ ->
-  assert_equal expected (get_words board) ~printer:(pp_list pp_string)
-  ~cmp:(cmp_set compare)
+  assert_equal expected (get_words_deep board)
+    ~printer:(pp_list pp_string) ~cmp:(cmp_set compare)
 
-(*
-          I               
-          N   H           
-          F   A           
-      A B L A T E         
-      B   A         I N T 
-      R   T H O U G H     
-      A   E       A       
-      S           T       
-I N C I N E R A T E       
-      V                   
-      E      
-*) [@@ocamlformat "disable"]
+let get_words_deep_disconnected_test (board : board) : test =
+  let test_name = Printf.sprintf "board raises Disconnected" in
+  test_name >:: fun _ ->
+  assert_raises Disconnected (fun _ -> get_words_deep board)
+
+(* let get_words_at_test
+    (board : board)
+    (position : position)
+    (max_depth : int)
+    (expected : string list) : test =
+  let test_name =
+    Printf.sprintf "board has words %s at position %s w/ depth %d"
+      (pp_list pp_string expected)
+      (pp_position position) max_depth
+  in
+  test_name >:: fun _ ->
+  assert_equal expected
+    (get_words_at board position max_depth)
+    ~printer:(pp_list pp_string) ~cmp:(cmp_set compare) *)
+
+let _ =
+  () 
+  (*
+            I               
+            N   H           
+            F   A           
+        A B L A T E         
+        B   A         I N T 
+        R   T H O U G H     
+        A   E       A       
+        S           T       
+  I N C I N E R A T E
+        V                   
+        E    
+  *)
+  [@ocamlformat "disable"]
 
 let test_board_1 =
   add_words
@@ -88,10 +112,28 @@ let test_board_1 =
     ]
     (new_board ())
 
+let test_board_2 =
+  add_words
+    [
+      ("ABLATE", Horizontal, (0, 0));
+      ("ABRASIVE", Vertical, (0, 0));
+      ("HAT", Vertical, (-2, 4));
+      ("INFLATE", Vertical, (-3, 2));
+      ("THOUGH", Horizontal, (2, 2));
+      ("INCINERATE", Horizontal, (5, -3));
+      ("GATE", Vertical, (2, 6));
+      ("INT", Horizontal, (1, 7));
+      ("DISCONNECTED", Vertical, (1, 100));
+    ]
+    (new_board ())
+
+let test_board_3 =
+  add_words [ ("ABLATE", Horizontal, (0, 0)) ] (new_board ())
+
 let get_words_tests =
   "test suite for Board.get_words"
   >::: [
-         get_words_test test_board_1
+         get_words_deep_test test_board_1
            [
              "ABLATE";
              "ABRASIVE";
@@ -103,6 +145,13 @@ let get_words_tests =
              "INT";
              "IH";
            ];
+         get_words_deep_test test_board_3 [ "ABLATE" ];
+         get_words_deep_disconnected_test test_board_2;
+
+         (* get_words_at_test test_board_1 (0, 0) 1
+           [ "ABLATE"; "ABRASIVE" ];
+         get_words_at_test test_board_1 (0, 1) 1
+           [ "ABLATE"; "ABRASIVE" ]; *)
        ]
 
 let suite =
