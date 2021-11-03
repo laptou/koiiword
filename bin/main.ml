@@ -77,9 +77,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
 
-  let { board; players; entry; current_player_index; _ } =
-    current_state
-  in
+  let { board; players; entry; current_player_index } = current_state in
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
@@ -149,11 +147,10 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   }
             | _ -> LoopResultContinue)
         | AddLetter { start; direction; word; _ } ->
-            let old_words = current_state.words in
-            (*let current_player = List.nth players current_player_index
-              in*)
-            (*let current_deck = current_player.letters in*)
-            (*let new_deck = refill_deck current_deck in*)
+            let old_words = get_words board in
+            let new_tiles =
+              apply_entry_tiles board.tiles start direction word
+            in
             (* TODO: validate the word they just created and either
                apply it or reject it *)
             LoopResultUpdateState
@@ -162,13 +159,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 current_player_index =
                   (current_player_index + 1) mod List.length players;
                 entry = SelectStart;
-                board =
-                  {
-                    board with
-                    tiles =
-                      apply_entry_tiles board.tiles start direction word;
-                  };
-                words = get_words board;
+                board = { board with tiles = new_tiles };
               }
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
@@ -467,7 +458,6 @@ let main () =
         players = sort_players player_lst;
         entry = SelectStart;
         current_player_index = 0;
-        words = [];
       }
   in
 
