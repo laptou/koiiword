@@ -32,7 +32,7 @@ let update_points old_words state =
           word_points h + new_word_points t words
         else new_word_points t words
   in
-  new_word_points (get_words state.board) old_words
+  new_word_points (get_words_deep state.board) old_words
 
 (* [update_players state] is an updated list of players with their most
    current scores *)
@@ -182,7 +182,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     }
               | _ -> LoopResultContinue)
         | AddLetter { start; direction; word; _ } ->
-            let old_words = get_words board in
+            let old_words = get_words_deep board in
             let new_tiles =
               apply_entry_tiles board.tiles start direction word
             in
