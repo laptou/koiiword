@@ -22,6 +22,119 @@ let set_tile board (tile : tile) =
 let get_tile board position =
   try Some (Hashtbl.find board.tiles position) with Not_found -> None
 
+type direction =
+  | Horizontal
+  | Vertical
+
+type multiplier =
+  | DoubleLet
+  | DoubleWord
+  | TripleLet
+  | TripleWord
+  | Normal
+
+let print_multi (m_type : multiplier) =
+  let s =
+    match m_type with
+    | DoubleLet -> "DL"
+    | DoubleWord -> "DW"
+    | TripleLet -> "TL"
+    | TripleWord -> "TW"
+    | Normal -> ""
+  in
+  print_string s
+
+let tw_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (0, 0);
+    (height / 2, 0);
+    (height, 0);
+    (0, width / 2);
+    (0, width);
+    (height, width / 2);
+    (height / 2, width);
+    (height, width);
+  ]
+
+let tl_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (1, (width / 2) - 2);
+    (1, (width / 2) + 2);
+    (height - 1, (width / 2) - 2);
+    (height - 1, (width / 2) + 2);
+    ((height / 2) + 2, 1);
+    ((height / 2) - 2, 1);
+    ((height / 2) - 2, width - 1);
+    ((height / 2) + 2, width - 1);
+    ((height / 2) - 2, (width / 2) - 2);
+    ((height / 2) - 2, (width / 2) + 2);
+    ((height / 2) + 2, (width / 2) - 2);
+    ((height / 2) + 2, (width / 2) + 2);
+  ]
+
+let dl_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (height / 4, 0);
+    (3 * (height / 4), 0);
+    (height / 4, width);
+    (3 * (height / 4), width);
+    (0, width / 4);
+    (0, 3 * (width / 4));
+    (height, 3 * (width / 4));
+    (height, width / 4);
+    ((height / 2) + 1, width / 2);
+    ((height / 2) - 1, width / 2);
+    (height / 2, (width / 2) + 1);
+    (height / 2, (width / 2) - 1);
+  ]
+
+let dw_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (height / 2, width / 2);
+    (1, 1);
+    (2, 2);
+    (3, 3);
+    (4, 4);
+    (1, width - 1);
+    (2, width - 2);
+    (3, width - 3);
+    (4, width - 4);
+    (height - 1, 1);
+    (height - 2, 2);
+    (height - 3, 3);
+    (height - 4, 4);
+    (height - 1, width - 1);
+    (height - 2, width - 2);
+    (height - 3, width - 3);
+    (height - 4, width - 4);
+  ]
+
+let rec add_multipliers
+    (multipliers : (position, multiplier) Hashtbl.t)
+    (multi : multiplier)
+    (lst : position list) =
+  match lst with
+  | [] -> ()
+  | h :: t ->
+      Hashtbl.add multipliers h multi;
+      add_multipliers multipliers multi t
+
+let multipliers (grid : grid_layout_spec) =
+  let premiums_table = Hashtbl.create 50 in
+  add_multipliers premiums_table DoubleLet (dl_list grid);
+  add_multipliers premiums_table DoubleWord (dw_list grid);
+  add_multipliers premiums_table TripleLet (tl_list grid);
+  add_multipliers premiums_table TripleWord (tw_list grid);
+  premiums_table
+
 let get_words (board : board) : string list =
   let { tiles; _ } = board in
   if Hashtbl.length tiles = 0 then []

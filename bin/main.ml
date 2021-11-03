@@ -242,6 +242,8 @@ let draw_board_tiles ctx tiles =
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
 
+let draw_multipliers multipliers = Seq.iter print_multi multipliers
+
 let draw_entry_highlight ctx (start : position) (direction : direction)
     =
   let rec helper (row, col) (row_increment, col_increment) =
