@@ -1,2 +1,3 @@
 (* MS1 = 30 hours *)
-let hours_worked = 30
+(* MS2 = 34 hours *)
+let hours_worked = 64
