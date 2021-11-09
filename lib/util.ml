@@ -31,3 +31,7 @@ let rec wrap x lim =
   if x > lim then wrap (x - (2 * lim) - 1) lim
   else if x < -lim then wrap (x + (2 * lim) + 1) lim
   else x
+
+let rec range start stop step fn =
+  fn start;
+  if start + step < stop then range (start + step) stop step fn

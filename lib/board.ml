@@ -137,6 +137,113 @@ let multipliers_lst (grid : grid_layout_spec) =
   add_multipliers premiums_table TripleWord (tw_list grid);
   premiums_table
 
+type multiplier =
+  | DoubleLet
+  | DoubleWord
+  | TripleLet
+  | TripleWord
+  | Normal
+
+let print_multi (m_type : multiplier) =
+  let s =
+    match m_type with
+    | DoubleLet -> "DL"
+    | DoubleWord -> "DW"
+    | TripleLet -> "TL"
+    | TripleWord -> "TW"
+    | Normal -> ""
+  in
+  print_string s
+
+let tw_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (0, 0);
+    (height / 2, 0);
+    (height, 0);
+    (0, width / 2);
+    (0, width);
+    (height, width / 2);
+    (height / 2, width);
+    (height, width);
+  ]
+
+let tl_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (1, (width / 2) - 2);
+    (1, (width / 2) + 2);
+    (height - 1, (width / 2) - 2);
+    (height - 1, (width / 2) + 2);
+    ((height / 2) + 2, 1);
+    ((height / 2) - 2, 1);
+    ((height / 2) - 2, width - 1);
+    ((height / 2) + 2, width - 1);
+    ((height / 2) - 2, (width / 2) - 2);
+    ((height / 2) - 2, (width / 2) + 2);
+    ((height / 2) + 2, (width / 2) - 2);
+    ((height / 2) + 2, (width / 2) + 2);
+  ]
+
+let dl_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (height / 4, 0);
+    (3 * (height / 4), 0);
+    (height / 4, width);
+    (3 * (height / 4), width);
+    (0, width / 4);
+    (0, 3 * (width / 4));
+    (height, 3 * (width / 4));
+    (height, width / 4);
+    ((height / 2) + 1, width / 2);
+    ((height / 2) - 1, width / 2);
+    (height / 2, (width / 2) + 1);
+    (height / 2, (width / 2) - 1);
+  ]
+
+let dw_list (grid : grid_layout_spec) =
+  let width = List.length grid.cols in
+  let height = List.length grid.rows in
+  [
+    (height / 2, width / 2);
+    (1, 1);
+    (2, 2);
+    (3, 3);
+    (4, 4);
+    (1, width - 1);
+    (2, width - 2);
+    (3, width - 3);
+    (4, width - 4);
+    (height - 1, 1);
+    (height - 2, 2);
+    (height - 3, 3);
+    (height - 4, 4);
+    (height - 1, width - 1);
+    (height - 2, width - 2);
+    (height - 3, width - 3);
+    (height - 4, width - 4);
+  ]
+
+let rec add_multipliers
+    (multipliers : (position, multiplier) Hashtbl.t)
+    (multi : multiplier) = function
+  | [] -> ()
+  | h :: t ->
+      Hashtbl.add multipliers h multi;
+      add_multipliers multipliers multi t
+
+let multipliers : (position, multiplier) Hashtbl.t =
+  let premiums_table = Hashtbl.create 50 in
+  add_multipliers premiums_table DoubleLet dl_list;
+  add_multipliers premiums_table DoubleWord dw_list;
+  add_multipliers premiums_table TripleLet tl_list;
+  add_multipliers premiums_table TripleWord tw_list;
+  premiums_table
+
 let get_words (board : board) : string list =
 
 (* This exception is thrown when there are tiles on the board that are
@@ -155,9 +262,13 @@ let get_words_impl
     let seen = Hashtbl.create (Hashtbl.length tiles) in
     let rec partial_word_at
         (position : position)
+<<<<<<< Updated upstream
         (axis : axis)
         (h_depth : int)
         (v_depth : int) : string * string list =
+=======
+        (direction : direction) : string * string list =
+>>>>>>> Stashed changes
       let row, col = position in
       match Hashtbl.find_opt tiles position with
       | None -> ("", [])
@@ -238,7 +349,11 @@ let get_words_impl
             search_words_at above Vertical h_depth v_depth
           else
             let word, branch_words =
+<<<<<<< Updated upstream
               partial_word_at position Vertical h_depth v_depth
+=======
+              partial_word_at position Vertical
+>>>>>>> Stashed changes
             in
             word :: branch_words
       | Horizontal ->
@@ -246,7 +361,11 @@ let get_words_impl
             search_words_at left Horizontal h_depth v_depth
           else
             let word, branch_words =
+<<<<<<< Updated upstream
               partial_word_at position Horizontal h_depth v_depth
+=======
+              partial_word_at position Horizontal
+>>>>>>> Stashed changes
             in
             word :: branch_words
     in

@@ -291,10 +291,6 @@ let get_tile_screen_position ctx (pan_row, pan_col) (row, col) =
   (row * v_spacing, col * h_spacing)
 
 let draw_board_gridlines ctx pan =
-  let rec range start stop step fn =
-    fn start;
-    if start + step < stop then range (start + step) stop step fn
-  in
   let size = LTerm_draw.size ctx in
   let width = size.cols in
   let height = size.rows in
@@ -303,11 +299,11 @@ let draw_board_gridlines ctx pan =
   in
 
   (* draw hlines *)
-  range 0 height v_spacing (fun row ->
+  Util.range 0 height v_spacing (fun row ->
       LTerm_draw.draw_hline ctx row 0 width ~style LTerm_draw.Light);
 
   (* draw vlines *)
-  range 0 width h_spacing (fun col ->
+  Util.range 0 width h_spacing (fun col ->
       LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light);
 
   (* draw center star *)
@@ -354,14 +350,24 @@ let multiplier_at_position ((row, col) : position) : multiplier option =
 
 let draw_multipliers ctx pan =
   let size = LTerm_draw.size ctx in
-  let width = size.cols in
-  let height = size.rows in
-  for col = -width to width do
-    for row = -height to height do
-      match multiplier_at_position (row, col) with
+  let screen_width = size.cols in
+  let screen_height = size.rows in
+  let board_width = screen_width / h_spacing in
+  let board_height = screen_height / v_spacing in
+  let pan_x, pan_y = pan in
+  for
+    board_col = (-board_width / 2) + pan_x to (board_width / 2) + pan_x
+  do
+    for
+      board_row = (-board_height / 2) + pan_y
+      to (board_height / 2) + pan_y
+    do
+      match multiplier_at_position (board_row, board_col) with
       | None -> ()
       | Some mult ->
-          let row, col = get_tile_screen_position ctx pan (row, col) in
+          let row, col =
+            get_tile_screen_position ctx pan (board_row, board_col)
+          in
           LTerm_draw.draw_string ctx (row + 1) (col + 1)
             (Zed_string.of_utf8 (print_multi mult))
     done
