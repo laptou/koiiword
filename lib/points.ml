@@ -18,3 +18,8 @@ let rec get_points ltr = function
       match h with
       | let_lst, pt ->
           if List.mem ltr let_lst then pt else get_points ltr t)
+
+(* [word_points wrd] is the number of points for wrd*)
+let word_points wrd =
+  let letters = List.init (String.length wrd) (String.get wrd) in
+  List.fold_right (fun l acc -> get_points l letter_pts + acc) letters 0
