@@ -348,13 +348,20 @@ let multiplier_at_position ((row, col) : position) : multiplier option =
   else if abs (row - col) = 3 then Some TripleWord
   else None
 
+let print_multi (m_type : multiplier) =
+  match m_type with
+  | DoubleLet -> "DL"
+  | DoubleWord -> "DW"
+  | TripleLet -> "TL"
+  | TripleWord -> "TW"
+
 let draw_multipliers ctx pan =
   let size = LTerm_draw.size ctx in
   let screen_width = size.cols in
   let screen_height = size.rows in
   let board_width = screen_width / h_spacing in
   let board_height = screen_height / v_spacing in
-  let pan_x, pan_y = pan in
+  let pan_y, pan_x = pan in
   for
     board_col = (-board_width / 2) + pan_x to (board_width / 2) + pan_x
   do
