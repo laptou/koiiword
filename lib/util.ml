@@ -26,3 +26,8 @@ let set (lst : 'a list) (n : int) (item : 'a) : 'a list =
 let explode s = List.init (String.length s) (String.get s)
 
 let sign n = if n > 0 then 1 else if n < 0 then -1 else 0
+
+let rec wrap x lim =
+  if x > lim then wrap (x - (2 * lim) - 1) lim
+  else if x < -lim then wrap (x + (2 * lim) + 1) lim
+  else x

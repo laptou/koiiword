@@ -8,6 +8,7 @@ open Koiiword.Layout
 open Koiiword.Generate_letters
 open Koiiword.Player
 open Koiiword.Entry
+open Koiiword.Util
 open CamomileLibrary
 
 (** The [loop_result] type describes the response of the gameplay loop
@@ -300,15 +301,30 @@ let draw_board_tiles ctx pan tiles =
         (Zed_char.of_utf8 (String.make 1 letter)))
     (Hashtbl.to_seq tiles)
 
-let draw_multipliers ctx grid =
-  Seq.iter
-    (fun (position, multiplier) ->
-      let row, col = position in
-      LTerm_draw.draw_string ctx
-        ((row * v_spacing) + 1)
-        ((col * h_spacing) + 1)
-        (Zed_string.of_utf8 (print_multi multiplier)))
-    (Hashtbl.to_seq (multipliers_lst grid))
+let multiplier_at_position ((row, col) : position) : multiplier option =
+  let row = wrap row 17 in
+  let col = wrap col 17 in
+
+  let row = abs row in
+  let col = abs col in
+  if row = col then Some DoubleWord
+  else if abs (row - col) = 3 then Some TripleWord
+  else None
+
+let draw_multipliers ctx pan =
+  let size = LTerm_draw.size ctx in
+  let width = size.cols in
+  let height = size.rows in
+  for col = -width to width do
+    for row = -height to height do
+      match multiplier_at_position (row, col) with
+      | None -> ()
+      | Some mult ->
+          let row, col = get_tile_screen_position ctx pan (row, col) in
+          LTerm_draw.draw_string ctx (row + 1) (col + 1)
+            (Zed_string.of_utf8 (print_multi mult))
+    done
+  done
 
 let draw_entry_highlight
     ctx
@@ -458,11 +474,10 @@ let draw ui_terminal matrix (game_state : game_state) =
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      let pan = game_state.board.pan in
-     let grid = layout_spec in
      draw_board_gridlines ctx pan;
      draw_board_cursor ctx pan game_state.board.cursor;
      draw_board_tiles ctx pan game_state.board.tiles;
-     draw_multipliers ctx grid;
+     draw_multipliers ctx pan;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
          draw_entry_highlight ctx pan start direction;

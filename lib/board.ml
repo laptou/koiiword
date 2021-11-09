@@ -7,7 +7,6 @@ type multiplier =
   | DoubleWord
   | TripleLet
   | TripleWord
-  | Normal
 
 type board = {
   (* the location of the user's cursor *)
@@ -46,7 +45,6 @@ let print_multi (m_type : multiplier) =
   | DoubleWord -> "DW"
   | TripleLet -> "TL"
   | TripleWord -> "TW"
-  | Normal -> ""
 
 let tw_list (grid : grid_layout_spec) =
   let width = List.length grid.cols in
@@ -102,7 +100,6 @@ let dw_list (grid : grid_layout_spec) =
   let width = List.length grid.cols in
   let height = List.length grid.rows in
   [
-    (height / 2, width / 2);
     (1, 1);
     (2, 2);
     (3, 3);
