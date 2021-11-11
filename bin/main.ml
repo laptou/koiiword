@@ -345,7 +345,9 @@ let multiplier_at_position ((row, col) : position) : multiplier option =
   let row = abs row in
   let col = abs col in
   if row = col then Some DoubleWord
-  else if abs (row - col) = 3 then Some TripleWord
+  else if row - col = 2 then Some TripleWord
+  else if row - col = 6 then Some DoubleLet
+  else if row - col = 7 then Some TripleLet
   else None
 
 let print_multi (m_type : multiplier) =
