@@ -125,6 +125,22 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
+    | LTerm_event.Key { code = Tab; _ } -> (
+        match entry with
+        | SelectStart ->
+            let pan_back =
+              {
+                current_state with
+                board =
+                  {
+                    current_state.board with
+                    cursor = (0, 0);
+                    pan = (0, 0);
+                  };
+              }
+            in
+            LoopResultUpdateState pan_back
+        | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Up; _ } -> (
         match entry with
         | SelectStart ->
