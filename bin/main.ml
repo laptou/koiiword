@@ -187,9 +187,9 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             if List.length word < 1 then LoopResultContinue
             else
               let old_words = get_words_deep board in
-              let tiles = Hashtbl.copy board.tiles in
+              let new_tiles = Hashtbl.copy board.tiles in
               let new_tiles =
-                apply_entry_tiles tiles start direction word
+                apply_entry_tiles new_tiles start direction word
               in
 
               try
@@ -200,15 +200,21 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 (* get words from char list *)
                 if List.for_all (is_word_valid dict) new_words then
                   (* if all words are valid then accept it *)
-                  LoopResultUpdateState
+                  (* calculate the new state, then update player point totals *)
+                  let new_state =
                     {
                       current_state with
-                      players = update_players old_words current_state;
                       current_player_index =
                         (current_player_index + 1)
                         mod List.length players;
                       entry = SelectStart;
                       board = { board with tiles = new_tiles };
+                    }
+                  in
+                  LoopResultUpdateState
+                    {
+                      new_state with
+                      players = update_players old_words new_state;
                     }
                 else
                   (* if any word is invalid, return their original deck
