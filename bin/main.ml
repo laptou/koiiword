@@ -204,9 +204,6 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   let new_state =
                     {
                       current_state with
-                      current_player_index =
-                        (current_player_index + 1)
-                        mod List.length players;
                       entry = SelectStart;
                       board = { board with tiles = new_tiles };
                     }
@@ -215,6 +212,9 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     {
                       new_state with
                       players = update_players old_words new_state;
+                      current_player_index =
+                        (current_player_index + 1)
+                        mod List.length players;
                     }
                 else
                   (* if any word is invalid, return their original deck
