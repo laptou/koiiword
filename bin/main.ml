@@ -392,11 +392,18 @@ let draw_entry_tiles
 
 let draw_instructions ctx instructions =
   let ctx_size = LTerm_draw.size ctx in
+  let ctx_rect =
+    { row1 = 0; row2 = ctx_size.rows; col1 = 0; col2 = ctx_size.cols }
+  in
+  let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
+  let ctx_size = LTerm_draw.size ctx in
   let lines =
     instructions |> Instructions.text |> Util.wrap ctx_size.cols
     |> List.map Zed_string.of_utf8
   in
-  List.iteri (fun row line -> LTerm_draw.draw_string ctx row 0 line) lines
+  List.iteri
+    (fun row line -> LTerm_draw.draw_string ctx row 0 line)
+    lines
 
 (* draw letters to letter box given a player's letter deck [deck] *)
 let draw_letters ctx deck =
