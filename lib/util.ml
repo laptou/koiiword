@@ -26,3 +26,37 @@ let set (lst : 'a list) (n : int) (item : 'a) : 'a list =
 let explode s = List.init (String.length s) (String.get s)
 
 let sign n = if n > 0 then 1 else if n < 0 then -1 else 0
+
+(** [wrap width str] returns a list of strings obtained by breaking
+    [str] into lines no longer than [width] characters *)
+let wrap (width : int) (str : string) : string list =
+  let rec get_width line =
+    match line with
+    | [] -> 0
+    | [ w ] -> String.length w
+    | w :: t -> String.length w + 1 + get_width t
+  in
+
+  let words = String.split_on_char ' ' str in
+
+  (* keep adding words to a line until doing so would overflow the line
+     limit, then start a new line at the top of the list *)
+  let lines =
+    List.fold_left
+      (fun lines word ->
+        let (line_words :: remaining) = lines [@@warning "-8"] in
+        if get_width (line_words @ [ word ]) > width then
+          [ word ] :: lines
+        else (line_words @ [ word ]) :: remaining)
+      [ [] ] words
+  in
+
+  let lines =
+    lines
+    (* join words together using spaces to make lines, then split lines
+       on \n and flatten *)
+    |> List.rev_map (fun words ->
+           words |> String.concat " " |> String.split_on_char '\n')
+    |> List.flatten
+  in
+  lines
