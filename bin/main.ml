@@ -357,6 +357,13 @@ let print_multi (m_type : multiplier) =
   | TripleLet -> "TL"
   | TripleWord -> "TW"
 
+let get_multi_color (m_type : multiplier) =
+  match m_type with
+  | DoubleLet -> Some LTerm_style.cyan
+  | DoubleWord -> Some LTerm_style.magenta
+  | TripleLet -> Some LTerm_style.green
+  | TripleWord -> Some LTerm_style.red
+
 let draw_multipliers ctx pan =
   let size = LTerm_draw.size ctx in
   let screen_width = size.cols in
@@ -379,6 +386,11 @@ let draw_multipliers ctx pan =
           in
           LTerm_draw.draw_string ctx (row + 1) (col + 1)
             (Zed_string.of_utf8 (print_multi mult))
+            ~style:
+              {
+                LTerm_style.none with
+                background = get_multi_color mult;
+              }
     done
   done
 
