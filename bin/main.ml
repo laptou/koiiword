@@ -449,6 +449,16 @@ let draw_players ctx state =
 
   inner 0 state.players
 
+(* draw players to players box given a list of game_state.players *)
+let draw_selection ctx (game_state : game_state) =
+  let { board; _ } = game_state in
+  let current_words = Board.get_words_at board board.cursor in
+  List.iteri
+    (fun idx word ->
+      LTerm_draw.draw_string ctx idx 0
+        (Zed_string.of_utf8 (Printf.sprintf "> %s (%d)" word 0)))
+    current_words
+
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
   let ctx_size = LTerm_draw.size ctx in
@@ -529,8 +539,8 @@ let draw ui_terminal matrix (game_state : game_state) =
      ());
     (* draw selection box *)
     let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
-    let _ = with_frame ctx " selection " LTerm_draw.Heavy in
-    ()
+    let ctx = with_frame ctx " selection " LTerm_draw.Heavy in
+    draw_selection ctx game_state
 
 let main () =
   Random.self_init ();
