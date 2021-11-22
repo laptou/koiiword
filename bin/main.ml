@@ -452,10 +452,15 @@ let draw_players ctx state =
 (* draw players to players box given a list of game_state.players *)
 let draw_selection ctx (game_state : game_state) =
   let { board; _ } = game_state in
+  (* TODO: add info about the current letter in addition to the current
+     word *)
   let current_words = Board.get_words_at board board.cursor in
+  (* TODO: add 1 unit of padding inside of the frame *)
   List.iteri
     (fun idx word ->
       LTerm_draw.draw_string ctx idx 0
+        (* TODO: replace this 0 with the total point value of the
+           word *)
         (Zed_string.of_utf8 (Printf.sprintf "> %s (%d)" word 0)))
     current_words
 
