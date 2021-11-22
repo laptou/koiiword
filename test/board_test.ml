@@ -1,6 +1,7 @@
 open OUnit2
 open Koiiword.Board
 open Koiiword.Util
+open Koiiword.Layout
 open Util
 
 let rec add_word word direction position board =
@@ -66,20 +67,19 @@ let get_words_deep_disconnected_test (board : board) : test =
   test_name >:: fun _ ->
   assert_raises Disconnected (fun _ -> get_words_deep board)
 
-(* let get_words_at_test
+let get_words_at_test
     (board : board)
     (position : position)
-    (max_depth : int)
     (expected : string list) : test =
   let test_name =
-    Printf.sprintf "board has words %s at position %s w/ depth %d"
+    Printf.sprintf "board has words %s at position %s"
       (pp_list pp_string expected)
-      (pp_position position) max_depth
+      (pp_position position)
   in
   test_name >:: fun _ ->
   assert_equal expected
-    (get_words_at board position max_depth)
-    ~printer:(pp_list pp_string) ~cmp:(cmp_set compare) *)
+    (get_words_at board position)
+    ~printer:(pp_list pp_string) ~cmp:(cmp_set compare)
 
 let _ =
   () 
@@ -147,11 +147,8 @@ let get_words_tests =
            ];
          get_words_deep_test test_board_3 [ "ABLATE" ];
          get_words_deep_disconnected_test test_board_2;
-
-         (* get_words_at_test test_board_1 (0, 0) 1
-           [ "ABLATE"; "ABRASIVE" ];
-         get_words_at_test test_board_1 (0, 1) 1
-           [ "ABLATE"; "ABRASIVE" ]; *)
+         get_words_at_test test_board_1 (0, 0) [ "ABLATE"; "ABRASIVE" ];
+         get_words_at_test test_board_1 (0, 1) [ "ABLATE" ];
        ]
 
 let suite =

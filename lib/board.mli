@@ -13,7 +13,7 @@ val set_tile : board -> Tile.tile -> unit
 val get_tile : board -> position -> char option
 exception Disconnected
 val get_words_deep : board -> string list
-(* val get_words_at : board -> Layout.position -> int -> string list *)
+val get_words_at : board -> Layout.position -> string list
 val apply_entry_tiles :
   (position, char) Hashtbl.t ->
   position ->
