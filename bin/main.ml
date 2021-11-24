@@ -449,6 +449,45 @@ let draw_players ctx state =
 
   inner 0 state.players
 
+(** checks if any player is at point threshold to win, thus ending the
+    game, returns player name that has won or empty string if game
+    should continue *)
+let rec check_points = function
+  | [] -> ""
+  | h :: t -> if h.points >= 4 then h.name else check_points t
+
+let restart = ref ()
+
+let draw_win_box ctx label connection ui : unit =
+  let ctx_size = LTerm_draw.size ctx in
+  let ctx_rect =
+    { row1 = 0; row2 = ctx_size.rows; col1 = 0; col2 = ctx_size.cols }
+  in
+  LTerm_draw.draw_frame ctx ctx_rect
+    ~style:{ LTerm_style.none with background = Some LTerm_style.blue }
+    connection;
+  LTerm_draw.draw_string_aligned ctx (ctx_size.rows / 2) H_align_center
+    ~style:
+      {
+        LTerm_style.none with
+        background = Some LTerm_style.white;
+        bold = Some true;
+      }
+    label;
+  LTerm_draw.draw_string ctx
+    ((ctx_size.rows / 2) + 3)
+    ((ctx_size.cols / 2) - 18)
+    ~style:{ LTerm_style.none with background = Some LTerm_style.red }
+    (Zed_string.of_utf8 "PRESS ENTER TO REPLAY OR DELETE TO EXIT");
+
+  let%lwt evt = LTerm_ui.wait ui in
+  let result : unit =
+    match evt with
+    | LTerm_event.Key { code = Enter; _ } -> !restart
+    | _ -> ()
+  in
+  result
+
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
   let ctx_size = LTerm_draw.size ctx in
@@ -462,6 +501,8 @@ let with_grid_cell ctx layout_spec row_start row_span col_start col_span
   let ctx = LTerm_draw.sub ctx abs_bounds in
   ctx
 
+let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] }
+
 let with_frame ctx label connection =
   let ctx_size = LTerm_draw.size ctx in
   let ctx_rect =
@@ -472,8 +513,6 @@ let with_frame ctx label connection =
     connection;
   let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
   ctx
-
-let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] }
 
 (** [sort_players players] is a list of players types sorted
     lexicographically by name. *)
@@ -502,35 +541,50 @@ let draw ui_terminal matrix (game_state : game_state) =
     let players = game_state.players in
     (* draw board *)
     let current_player_index = game_state.current_player_index in
-    (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
-     let ctx = with_frame ctx " board " LTerm_draw.Heavy in
-     let pan = game_state.board.pan in
-     draw_board_gridlines ctx pan;
-     draw_board_cursor ctx pan game_state.board.cursor;
-     draw_board_tiles ctx pan game_state.board.tiles;
-     match game_state.entry with
-     | AddLetter { start; direction; word; _ } ->
-         draw_entry_highlight ctx pan start direction;
-         draw_entry_tiles ctx pan game_state.board.tiles start direction
-           word
-     | _ -> ());
-    (* draw players box *)
-    (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
-     let _ = with_frame ctx " players " LTerm_draw.Heavy in
-     draw_players ctx game_state);
-    (* draw letters box *)
-    (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
-     let _ = with_frame ctx " letters " LTerm_draw.Heavy in
-     let current_player = List.nth players current_player_index in
-     draw_letters ctx current_player.letters);
-    (* draw prompt box *)
-    (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
-     let _ = with_frame ctx "" LTerm_draw.Heavy in
-     ());
-    (* draw selection box *)
-    let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
-    let _ = with_frame ctx " selection " LTerm_draw.Heavy in
-    ()
+    let check = check_points players in
+    if check = "" then (
+      (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
+       let ctx = with_frame ctx " board " LTerm_draw.Heavy in
+       let pan = game_state.board.pan in
+       draw_board_gridlines ctx pan;
+       draw_board_cursor ctx pan game_state.board.cursor;
+       draw_board_tiles ctx pan game_state.board.tiles;
+       match game_state.entry with
+       | AddLetter { start; direction; word; _ } ->
+           draw_entry_highlight ctx pan start direction;
+           draw_entry_tiles ctx pan game_state.board.tiles start
+             direction word
+       | _ -> ());
+      (* draw players box *)
+      (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
+       let _ = with_frame ctx " players " LTerm_draw.Heavy in
+       draw_players ctx game_state);
+      (* draw letters box *)
+      (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
+       let _ = with_frame ctx " letters " LTerm_draw.Heavy in
+       let current_player = List.nth players current_player_index in
+       draw_letters ctx current_player.letters);
+      (* draw prompt box *)
+      (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
+       let _ = with_frame ctx "" LTerm_draw.Heavy in
+       ());
+      (* draw selection box *)
+      let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
+      let _ = with_frame ctx " selection " LTerm_draw.Heavy in
+      ())
+    else
+      let ctx_size = LTerm_draw.size ctx in
+      let ctx =
+        with_grid_cell ctx layout_spec 0 ctx_size.rows 0 ctx_size.cols
+      in
+      draw_win_box ctx
+        (Zed_string.of_utf8 (check ^ " wins!"))
+        LTerm_draw.Heavy ui_terminal
+
+(*let check = check_points players in if check <> "" then let ctx_size =
+  LTerm_draw.size ctx in let ctx = with_grid_cell ctx layout_spec 0
+  ctx_size.rows 0 ctx_size.cols in let _ = draw_win_box ctx
+  (Zed_string.of_utf8 (check ^ " wins!")) LTerm_draw.Heavy in ()*)
 
 let main () =
   Random.self_init ();
@@ -564,4 +618,5 @@ let main () =
     (fun () -> loop ui game_state)
     (fun () -> LTerm_ui.quit ui)
 
+(* restart := Lwt_main.run (main ());*)
 let () = Lwt_main.run (main ())
