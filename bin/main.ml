@@ -458,7 +458,13 @@ let rec check_points = function
 
 let restart = ref ()
 
-let draw_win_box ctx label connection (*ui : unit*) =
+(** [sort_players players] is a list of players types sorted
+    lexicographically by name. *)
+let sort_players players =
+  let comp p1 p2 = Stdlib.compare p1.name p2.name in
+  List.sort comp players
+
+let draw_win_box ctx label connection (*ui*) =
   let ctx_size = LTerm_draw.size ctx in
   let ctx_rect =
     { row1 = 0; row2 = ctx_size.rows; col1 = 0; col2 = ctx_size.cols }
@@ -473,15 +479,31 @@ let draw_win_box ctx label connection (*ui : unit*) =
         background = Some LTerm_style.white;
         bold = Some true;
       }
-    label;
-  LTerm_draw.draw_string ctx
-    ((ctx_size.rows / 2) + 3)
-    ((ctx_size.cols / 2) - 18)
-    ~style:{ LTerm_style.none with background = Some LTerm_style.red }
-    (Zed_string.of_utf8 "PRESS ENTER TO REPLAY OR DELETE TO EXIT")
+    label
+(*LTerm_draw.draw_string ctx ((ctx_size.rows / 2) + 3) ((ctx_size.cols /
+  2) - 18) ~style:{ LTerm_style.none with background = Some
+  LTerm_style.red } (Zed_string.of_utf8 "PRESS ENTER TO REPLAY OR DELETE
+  TO EXIT");
 
-(*let%lwt evt = LTerm_ui.wait ui in let result : unit = match evt with |
-  LTerm_event.Key { code = Enter; _ } -> !restart | _ -> () in result*)
+  let%lwt evt = LTerm_ui.wait ui in let result = match evt with |
+  LTerm_event.Key { code = Enter; _ } -> LoopResultContinue | _ ->
+  LoopResultExit in match result with | LoopResultContinue -> let g =
+  ref Lwt.return_unit in let replay () = let dictionary = dict_from_file
+  "dictionary/english_dict.txt" in (* Define players *) let player1 = {
+  name = "P1"; points = 0; letters = new_deck () } in let player2 = {
+  name = "P2"; points = 0; letters = new_deck () } in let player3 = {
+  name = "P3"; points = 0; letters = new_deck () } in let player4 = {
+  name = "P4"; points = 0; letters = new_deck () } in let player_lst = [
+  player1; player2; player3; player4 ] in
+
+  let game_state : game_state ref = ref { board = new_board (); players
+  = sort_players player_lst; entry = SelectStart; current_player_index =
+  0; dict = dictionary; } in let _ = g := loop ui game_state in
+  Lwt.finalize (fun () -> loop ui game_state) (fun () -> LTerm_ui.quit
+  ui) in let _ = Lwt_main.run (replay ()) in !g | _ -> return_unit*)
+
+(*let result : unit = match evt with | LTerm_event.Key { code = Enter; _
+  } -> !restart | _ -> () in result*)
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -508,12 +530,6 @@ let with_frame ctx label connection =
     connection;
   let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
   ctx
-
-(** [sort_players players] is a list of players types sorted
-    lexicographically by name. *)
-let sort_players players =
-  let comp p1 p2 = Stdlib.compare p1.name p2.name in
-  List.sort comp players
 
 (** The renderer. This takes game state and a terminal UI object and
     renders the game according to its current state. *)
@@ -575,8 +591,8 @@ let draw ui_terminal matrix (game_state : game_state) =
       draw_win_box ctx
         (Zed_string.of_utf8 (check ^ " wins!"))
         LTerm_draw.Heavy
-(*ui_terminal*)
 
+(*ui_terminal*)
 (*let check = check_points players in if check <> "" then let ctx_size =
   LTerm_draw.size ctx in let ctx = with_grid_cell ctx layout_spec 0
   ctx_size.rows 0 ctx_size.cols in let _ = draw_win_box ctx
@@ -614,5 +630,5 @@ let main () =
     (fun () -> loop ui game_state)
     (fun () -> LTerm_ui.quit ui)
 
-(* restart := Lwt_main.run (main ());*)
-let () = Lwt_main.run (main ())
+let () = restart := Lwt_main.run (main ())
+(*let () = Lwt_main.run (main ())*)
