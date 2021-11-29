@@ -449,6 +449,7 @@ let draw_players ctx state =
 
   inner 0 state.players
 
+(* draw words and character highlight to be put in the selection box *)
 let draw_sel_word ctx idx word ind =
   LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 ">");
   let str_lst = List.of_seq (String.to_seq word) in
@@ -470,7 +471,8 @@ let draw_sel_word ctx idx word ind =
     (List.length str_lst + 1)
     (Zed_string.of_utf8 (Printf.sprintf " (%d)" points))
 
-(* draw players to players box given a list of game_state.players *)
+(* draw selection box to give information about words and letter
+   highlighted *)
 let draw_selection ctx (game_state : game_state) =
   let { board; _ } = game_state in
   let tile_to_str tile =
