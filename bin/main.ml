@@ -450,8 +450,13 @@ let draw_players ctx state =
   inner 0 state.players
 
 (* draw words and character highlight to be put in the selection box *)
-let draw_sel_word ctx idx word ind =
-  LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 ">");
+let draw_sel_word ctx idx word ind axis =
+  let draw_arrow = function
+    | Horizontal ->
+        LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "→")
+    | Vertical -> LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "↓")
+  in
+  draw_arrow axis;
   let str_lst = List.of_seq (String.to_seq word) in
   let draw_char ch col =
     LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
@@ -499,7 +504,7 @@ let draw_selection ctx (game_state : game_state) =
     (fun idx el ->
       let word = fst el in
       let axis = snd el in
-      draw_sel_word ctx idx word (find_ch_ind axis))
+      draw_sel_word ctx idx word (find_ch_ind axis) axis)
     current_words
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
