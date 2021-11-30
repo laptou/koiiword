@@ -23,10 +23,7 @@ exception Disconnected
 
 val get_words_deep : board -> string list
 
-val get_words_with_axis :
-  board -> Layout.position -> (string * axis) list
-
-val get_words_at : board -> Layout.position -> string list
+val get_words_at : board -> Layout.position -> (string * axis) list
 
 val apply_entry_tiles :
   (position, char) Hashtbl.t ->

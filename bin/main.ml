@@ -483,7 +483,7 @@ let draw_selection ctx (game_state : game_state) =
   let tile_to_str tile =
     match tile with None -> "" | Some c -> String.make 1 c
   in
-  let current_words = Board.get_words_with_axis board board.cursor in
+  let current_words = Board.get_words_at board board.cursor in
   let find_ch_ind axis =
     let i = ref 0 in
     let str ind =
