@@ -9,4 +9,5 @@ type game_state = {
   entry : entry_state;
   current_player_index : int;
   dict : dictionary;
+  mutable in_play : bool;
 }

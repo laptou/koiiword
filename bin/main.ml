@@ -119,7 +119,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players; entry; current_player_index; dict } =
+  let { board; players; entry; current_player_index; dict; in_play } =
     current_state
   in
   let { cursor; _ } = board in
@@ -174,65 +174,81 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
               (with_input_direction current_state start Right)
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Enter; _ } -> (
-        match entry with
-        | SelectStart -> (
-            if
-              (* if this is the first tile the user is placing, they
-                 have to place it at (0, 0) *)
-              Hashtbl.length board.tiles = 0
-            then
-              if cursor = (0, 0) then
-                LoopResultUpdateState
-                  {
-                    current_state with
-                    entry = SelectDirection { start = cursor };
-                  }
-              else LoopResultContinue
-            else
-              (* only allow the player to start a word here if there is
-                 no tile at this location *)
-              match get_tile board cursor with
-              | None ->
+        if in_play = false then
+          LoopResultUpdateState
+            {
+              board = new_board ();
+              players =
+                List.map
+                  (fun player ->
+                    { player with points = 0; letters = new_deck () })
+                  players;
+              entry = SelectStart;
+              current_player_index = 0;
+              dict;
+              in_play = true;
+            }
+        else
+          match entry with
+          | SelectStart -> (
+              if
+                (* if this is the first tile the user is placing, they
+                   have to place it at (0, 0) *)
+                Hashtbl.length board.tiles = 0
+              then
+                if cursor = (0, 0) then
                   LoopResultUpdateState
                     {
                       current_state with
                       entry = SelectDirection { start = cursor };
                     }
-              | _ -> LoopResultContinue)
-        | AddLetter { start; direction; word; deck; _ } ->
-            if List.length word < 1 then LoopResultContinue
-            else
-              let old_words = get_words_deep board in
-              let old_tiles = Hashtbl.copy board.tiles in
-              let new_tiles =
-                apply_entry_tiles board.tiles start direction word
-              in
-              let new_words =
-                get_words_deep { board with tiles = new_tiles }
-              in
-
-              (* get words from char list *)
-              if List.for_all (is_word_valid dict) new_words then
-                (* if all words are valid then accept it *)
-                LoopResultUpdateState
-                  {
-                    current_state with
-                    players = update_players old_words current_state;
-                    current_player_index =
-                      (current_player_index + 1) mod List.length players;
-                    entry = SelectStart;
-                    board = { board with tiles = new_tiles };
-                  }
+                else LoopResultContinue
               else
-                (* if any word is invalid, return their original deck
-                   and put them back in reselect state *)
-                LoopResultUpdateState
-                  {
-                    (with_deck current_state deck) with
-                    entry = SelectStart;
-                    board = { board with tiles = old_tiles };
-                  }
-        | _ -> LoopResultContinue)
+                (* only allow the player to start a word here if there
+                   is no tile at this location *)
+                match get_tile board cursor with
+                | None ->
+                    LoopResultUpdateState
+                      {
+                        current_state with
+                        entry = SelectDirection { start = cursor };
+                      }
+                | _ -> LoopResultContinue)
+          | AddLetter { start; direction; word; deck; _ } ->
+              if List.length word < 1 then LoopResultContinue
+              else
+                let old_words = get_words_deep board in
+                let old_tiles = Hashtbl.copy board.tiles in
+                let new_tiles =
+                  apply_entry_tiles board.tiles start direction word
+                in
+                let new_words =
+                  get_words_deep { board with tiles = new_tiles }
+                in
+
+                (* get words from char list *)
+                if List.for_all (is_word_valid dict) new_words then
+                  (* if all words are valid then accept it *)
+                  LoopResultUpdateState
+                    {
+                      current_state with
+                      players = update_players old_words current_state;
+                      current_player_index =
+                        (current_player_index + 1)
+                        mod List.length players;
+                      entry = SelectStart;
+                      board = { board with tiles = new_tiles };
+                    }
+                else
+                  (* if any word is invalid, return their original deck
+                     and put them back in reselect state *)
+                  LoopResultUpdateState
+                    {
+                      (with_deck current_state deck) with
+                      entry = SelectStart;
+                      board = { board with tiles = old_tiles };
+                    }
+          | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
         match entry with
         (* if they were in the middle of spelling a word, restore the
@@ -293,6 +309,12 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
 let h_spacing = 3
 
 let v_spacing = 2
+
+(** [sort_players players] is a list of players types sorted
+    lexicographically by name. *)
+let sort_players players =
+  let comp p1 p2 = Stdlib.compare p1.name p2.name in
+  List.sort comp players
 
 (* [get_tile_screen_position ctx pan position] returns the position
    inside of [ctx] where a certain tile should be drawn given the
@@ -456,14 +478,6 @@ let rec check_points = function
   | [] -> ""
   | h :: t -> if h.points >= 4 then h.name else check_points t
 
-let restart = ref ()
-
-(** [sort_players players] is a list of players types sorted
-    lexicographically by name. *)
-let sort_players players =
-  let comp p1 p2 = Stdlib.compare p1.name p2.name in
-  List.sort comp players
-
 let draw_win_box ctx label connection (*ui*) =
   let ctx_size = LTerm_draw.size ctx in
   let ctx_rect =
@@ -480,30 +494,6 @@ let draw_win_box ctx label connection (*ui*) =
         bold = Some true;
       }
     label
-(*LTerm_draw.draw_string ctx ((ctx_size.rows / 2) + 3) ((ctx_size.cols /
-  2) - 18) ~style:{ LTerm_style.none with background = Some
-  LTerm_style.red } (Zed_string.of_utf8 "PRESS ENTER TO REPLAY OR DELETE
-  TO EXIT");
-
-  let%lwt evt = LTerm_ui.wait ui in let result = match evt with |
-  LTerm_event.Key { code = Enter; _ } -> LoopResultContinue | _ ->
-  LoopResultExit in match result with | LoopResultContinue -> let g =
-  ref Lwt.return_unit in let replay () = let dictionary = dict_from_file
-  "dictionary/english_dict.txt" in (* Define players *) let player1 = {
-  name = "P1"; points = 0; letters = new_deck () } in let player2 = {
-  name = "P2"; points = 0; letters = new_deck () } in let player3 = {
-  name = "P3"; points = 0; letters = new_deck () } in let player4 = {
-  name = "P4"; points = 0; letters = new_deck () } in let player_lst = [
-  player1; player2; player3; player4 ] in
-
-  let game_state : game_state ref = ref { board = new_board (); players
-  = sort_players player_lst; entry = SelectStart; current_player_index =
-  0; dict = dictionary; } in let _ = g := loop ui game_state in
-  Lwt.finalize (fun () -> loop ui game_state) (fun () -> LTerm_ui.quit
-  ui) in let _ = Lwt_main.run (replay ()) in !g | _ -> return_unit*)
-
-(*let result : unit = match evt with | LTerm_event.Key { code = Enter; _
-  } -> !restart | _ -> () in result*)
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -590,7 +580,8 @@ let draw ui_terminal matrix (game_state : game_state) =
       in
       draw_win_box ctx
         (Zed_string.of_utf8 (check ^ " wins!"))
-        LTerm_draw.Heavy
+        LTerm_draw.Heavy;
+      game_state.in_play <- false
 
 (*ui_terminal*)
 (*let check = check_points players in if check <> "" then let ctx_size =
@@ -619,6 +610,7 @@ let main () =
         entry = SelectStart;
         current_player_index = 0;
         dict = dictionary;
+        in_play = true;
       }
   in
 
@@ -630,5 +622,5 @@ let main () =
     (fun () -> loop ui game_state)
     (fun () -> LTerm_ui.quit ui)
 
-let () = restart := Lwt_main.run (main ())
+let () = Lwt_main.run (main ())
 (*let () = Lwt_main.run (main ())*)
