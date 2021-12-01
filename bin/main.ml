@@ -222,6 +222,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 let new_tiles =
                   apply_entry_tiles board.tiles start direction word
                 in
+              try
                 let new_words =
                   get_words_deep { board with tiles = new_tiles }
                 in
@@ -229,15 +230,21 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 (* get words from char list *)
                 if List.for_all (is_word_valid dict) new_words then
                   (* if all words are valid then accept it *)
-                  LoopResultUpdateState
+                  (* calculate the new state, then update player point totals *)
+                  let new_state =
                     {
                       current_state with
-                      players = update_players old_words current_state;
+                      entry = SelectStart;
+                      board = { board with tiles = new_tiles };
+                    }
+                  in
+                  LoopResultUpdateState
+                    {
+                      new_state with
+                      players = update_players old_words new_state;
                       current_player_index =
                         (current_player_index + 1)
                         mod List.length players;
-                      entry = SelectStart;
-                      board = { board with tiles = new_tiles };
                     }
                 else
                   (* if any word is invalid, return their original deck
@@ -246,9 +253,16 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     {
                       (with_deck current_state deck) with
                       entry = SelectStart;
-                      board = { board with tiles = old_tiles };
                     }
-          | _ -> LoopResultContinue)
+              with Disconnected ->
+                (* if the word was entered without being connected to
+                   (0, 0), then reset *)
+                LoopResultUpdateState
+                  {
+                    (with_deck current_state deck) with
+                    entry = SelectStart;
+                  })
+        | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
         match entry with
         (* if they were in the middle of spelling a word, restore the
@@ -263,6 +277,18 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         | _ ->
             LoopResultUpdateState
               { current_state with entry = SelectStart })
+    | LTerm_event.Key { code = F1; _ } -> (
+        match entry with
+        | _ ->
+            LoopResultUpdateState
+              {
+                current_state with
+                players =
+                  update_players (get_words_deep board) current_state;
+                current_player_index =
+                  (current_player_index + 1) mod List.length players;
+                entry = SelectStart;
+              })
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
         match UChar.char_of c with
