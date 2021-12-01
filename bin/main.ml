@@ -263,6 +263,18 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         | _ ->
             LoopResultUpdateState
               { current_state with entry = SelectStart })
+    | LTerm_event.Key { code = F1; _ } -> (
+        match entry with
+        | _ ->
+            LoopResultUpdateState
+              {
+                current_state with
+                players =
+                  update_players (get_words_deep board) current_state;
+                current_player_index =
+                  (current_player_index + 1) mod List.length players;
+                entry = SelectStart;
+              })
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
         match UChar.char_of c with
