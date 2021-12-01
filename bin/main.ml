@@ -493,7 +493,13 @@ let draw_win_box ctx label connection (*ui*) =
         background = Some LTerm_style.white;
         bold = Some true;
       }
-    label
+    label;
+  LTerm_draw.draw_string ctx
+    ((ctx_size.rows / 2) + 3)
+    ((ctx_size.cols / 2) - 18)
+    ~style:
+      { LTerm_style.none with background = Some LTerm_style.magenta }
+    (Zed_string.of_utf8 "PRESS ENTER TO REPLAY OR CTRL-C TO EXIT")
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
