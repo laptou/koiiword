@@ -351,7 +351,9 @@ let draw_board_tiles ctx pan tiles =
     (fun (position, letter) ->
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
-        (Zed_char.of_utf8 (String.make 1 letter)))
+        (Zed_char.of_utf8 (String.make 1 letter));
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " "))
     (Hashtbl.to_seq tiles)
 
 let multiplier_at_position ((row, col) : position) : multiplier option =
@@ -439,6 +441,13 @@ let draw_entry_tiles
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
         (Zed_char.of_utf8 (String.make 1 letter))
+        ~style:
+          {
+            LTerm_style.none with
+            foreground = Some LTerm_style.magenta;
+          };
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " ")
         ~style:
           {
             LTerm_style.none with
@@ -547,9 +556,9 @@ let draw ui_terminal matrix (game_state : game_state) =
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      let pan = game_state.board.pan in
      draw_board_gridlines ctx pan;
+     draw_multipliers ctx pan;
      draw_board_cursor ctx pan game_state.board.cursor;
      draw_board_tiles ctx pan game_state.board.tiles;
-     draw_multipliers ctx pan;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
          draw_entry_highlight ctx pan start direction;
