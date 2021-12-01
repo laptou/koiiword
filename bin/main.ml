@@ -199,39 +199,55 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                       entry = SelectDirection { start = cursor };
                     }
               | _ -> LoopResultContinue)
-        | AddLetter { start; direction; word; deck; _ } ->
+        | AddLetter { start; direction; word; deck; _ } -> (
             if List.length word < 1 then LoopResultContinue
             else
               let old_words = get_words_deep board in
-              let old_tiles = Hashtbl.copy board.tiles in
+              let new_tiles = Hashtbl.copy board.tiles in
               let new_tiles =
-                apply_entry_tiles board.tiles start direction word
-              in
-              let new_words =
-                get_words_deep { board with tiles = new_tiles }
+                apply_entry_tiles new_tiles start direction word
               in
 
-              (* get words from char list *)
-              if List.for_all (is_word_valid dict) new_words then
-                (* if all words are valid then accept it *)
-                LoopResultUpdateState
-                  {
-                    current_state with
-                    players = update_players old_words current_state;
-                    current_player_index =
-                      (current_player_index + 1) mod List.length players;
-                    entry = SelectStart;
-                    board = { board with tiles = new_tiles };
-                  }
-              else
-                (* if any word is invalid, return their original deck
-                   and put them back in reselect state *)
+              try
+                let new_words =
+                  get_words_deep { board with tiles = new_tiles }
+                in
+
+                (* get words from char list *)
+                if List.for_all (is_word_valid dict) new_words then
+                  (* if all words are valid then accept it *)
+                  (* calculate the new state, then update player point totals *)
+                  let new_state =
+                    {
+                      current_state with
+                      entry = SelectStart;
+                      board = { board with tiles = new_tiles };
+                    }
+                  in
+                  LoopResultUpdateState
+                    {
+                      new_state with
+                      players = update_players old_words new_state;
+                      current_player_index =
+                        (current_player_index + 1)
+                        mod List.length players;
+                    }
+                else
+                  (* if any word is invalid, return their original deck
+                     and put them back in reselect state *)
+                  LoopResultUpdateState
+                    {
+                      (with_deck current_state deck) with
+                      entry = SelectStart;
+                    }
+              with Disconnected ->
+                (* if the word was entered without being connected to
+                   (0, 0), then reset *)
                 LoopResultUpdateState
                   {
                     (with_deck current_state deck) with
                     entry = SelectStart;
-                    board = { board with tiles = old_tiles };
-                  }
+                  })
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
         match entry with
