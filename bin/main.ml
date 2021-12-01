@@ -476,7 +476,7 @@ let draw_players ctx state =
     should continue *)
 let rec check_points = function
   | [] -> ""
-  | h :: t -> if h.points >= 4 then h.name else check_points t
+  | h :: t -> if h.points >= 100 then h.name else check_points t
 
 let draw_win_box ctx label connection (*ui*) =
   let ctx_size = LTerm_draw.size ctx in
@@ -588,12 +588,6 @@ let draw ui_terminal matrix (game_state : game_state) =
         (Zed_string.of_utf8 (check ^ " wins!"))
         LTerm_draw.Heavy;
       game_state.in_play <- false
-
-(*ui_terminal*)
-(*let check = check_points players in if check <> "" then let ctx_size =
-  LTerm_draw.size ctx in let ctx = with_grid_cell ctx layout_spec 0
-  ctx_size.rows 0 ctx_size.cols in let _ = draw_win_box ctx
-  (Zed_string.of_utf8 (check ^ " wins!")) LTerm_draw.Heavy in ()*)
 
 let main () =
   Random.self_init ();
