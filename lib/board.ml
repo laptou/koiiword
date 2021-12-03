@@ -144,9 +144,9 @@ let get_words_impl
     let right = (row, col + 1) in
     let found_words =
       if Hashtbl.mem tiles above || Hashtbl.mem tiles below then
-        search_words_at position Vertical 1 0
+        search_words_at position Vertical 0 1
       else if Hashtbl.mem tiles left || Hashtbl.mem tiles right then
-        search_words_at position Horizontal 0 1
+        search_words_at position Horizontal 1 0
       else []
     in
     if check_connected && Hashtbl.length seen < Hashtbl.length tiles
@@ -159,13 +159,56 @@ let get_words_impl
 let get_words_deep (board : board) : string list =
   get_words_impl board (0, 0) 10000000 true
 
-(** [get_words_at board position max_depth] returns words that are found
-    by starting at [position] and searching outwards. Each time the
-    search branches, the depth increases, and it is capped at
-    [max_depth]. *)
-(* let get_words_at (board : board) (position : position) (max_depth : int)
-    : string list =
-  get_words_impl board position max_depth false *)
+(** [get_words_at board position] returns words that are found by
+    starting at [position] and the axis representing the orientation of
+    the word. *)
+let get_words_at (board : board) (position : position) :
+    (string * axis) list =
+  let { tiles; _ } = board in
+  if Hashtbl.length tiles = 0 then []
+  else
+    let rec read_word (position : position) (axis : axis) : string =
+      let row, col = position in
+      match Hashtbl.find_opt tiles position with
+      | Some l -> (
+          let l = String.make 1 l in
+          match axis with
+          | Vertical ->
+              let below = (row + 1, col) in
+              l ^ read_word below axis
+          | Horizontal ->
+              let right = (row, col + 1) in
+              l ^ read_word right axis)
+      | None -> ""
+    in
+
+    let rec find_word (position : position) (axis : axis) :
+        string option =
+      let row, col = position in
+      if Hashtbl.mem tiles position then
+        match axis with
+        | Vertical ->
+            let above = (row - 1, col) in
+            if Hashtbl.mem tiles above then find_word above axis
+            else Some (read_word position axis)
+        | Horizontal ->
+            let left = (row, col - 1) in
+            if Hashtbl.mem tiles left then find_word left axis
+            else Some (read_word position axis)
+      else None
+    in
+
+    List.filter_map
+      (fun el ->
+        let word = fst el in
+        match word with
+        | Some word ->
+            if String.length word > 1 then Some (word, snd el) else None
+        | _ -> None)
+      [
+        (find_word position Vertical, Vertical);
+        (find_word position Horizontal, Horizontal);
+      ]
 
 let apply_entry_tiles
     tiles
