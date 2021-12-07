@@ -2,6 +2,12 @@ open Tile
 open Layout
 open Entry
 
+type multiplier =
+  | DoubleLet
+  | DoubleWord
+  | TripleLet
+  | TripleWord
+
 type board = {
   (* the location of the user's cursor *)
   cursor : position;
@@ -9,6 +15,7 @@ type board = {
   pan : position;
   (* the tiles on the board *)
   tiles : (position, char) Hashtbl.t;
+  multipliers : (position, multiplier) Hashtbl.t;
 }
 
 type axis =
@@ -16,7 +23,12 @@ type axis =
   | Vertical
 
 let new_board () =
-  { cursor = (0, 0); tiles = Hashtbl.create 0; pan = (0, 0) }
+  {
+    cursor = (0, 0);
+    tiles = Hashtbl.create 0;
+    pan = (0, 0);
+    multipliers = Hashtbl.create 0;
+  }
 
 let set_tile board (tile : tile) =
   let ch, position = tile in
@@ -159,6 +171,7 @@ let get_words_impl
 let get_words_deep (board : board) : string list =
   get_words_impl board (0, 0) 10000000 true
 
+
 (** [get_words_at board position] returns words that are found by
     starting at [position] and the axis representing the orientation of
     the word. *)
@@ -209,6 +222,7 @@ let get_words_at (board : board) (position : position) :
         (find_word position Vertical, Vertical);
         (find_word position Horizontal, Horizontal);
       ]
+
 
 let apply_entry_tiles
     tiles

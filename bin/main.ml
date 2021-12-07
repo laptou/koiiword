@@ -9,6 +9,7 @@ open Koiiword.Generate_letters
 open Koiiword.Player
 open Koiiword.Points
 open Koiiword.Entry
+open Koiiword.Util
 open Koiiword.Dictionary
 open CamomileLibrary
 
@@ -334,10 +335,6 @@ let get_tile_screen_position ctx (pan_row, pan_col) (row, col) =
   (row * v_spacing, col * h_spacing)
 
 let draw_board_gridlines ctx pan =
-  let rec range start stop step fn =
-    fn start;
-    if start + step < stop then range (start + step) stop step fn
-  in
   let size = LTerm_draw.size ctx in
   let width = size.cols in
   let height = size.rows in
@@ -346,11 +343,11 @@ let draw_board_gridlines ctx pan =
   in
 
   (* draw hlines *)
-  range 0 height v_spacing (fun row ->
+  Util.range 0 height v_spacing (fun row ->
       LTerm_draw.draw_hline ctx row 0 width ~style LTerm_draw.Light);
 
   (* draw vlines *)
-  range 0 width h_spacing (fun col ->
+  Util.range 0 width h_spacing (fun col ->
       LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light);
 
   (* draw center star *)
@@ -382,8 +379,54 @@ let draw_board_tiles ctx pan tiles =
     (fun (position, letter) ->
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
-        (Zed_char.of_utf8 (String.make 1 letter)))
+        (Zed_char.of_utf8 (String.make 1 letter));
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " "))
     (Hashtbl.to_seq tiles)
+
+let multiplier_at_position ((row, col) : position) : multiplier option =
+  let row = wrap row 17 in
+  let col = wrap col 17 in
+
+  let row = abs row in
+  let col = abs col in
+  if row = col then Some DoubleWord
+  else if row - col = 2 then Some TripleWord
+  else if row - col = 6 then Some DoubleLet
+  else if row - col = 7 then Some TripleLet
+  else None
+
+let print_multi (m_type : multiplier) =
+  match m_type with
+  | DoubleLet -> "DL"
+  | DoubleWord -> "DW"
+  | TripleLet -> "TL"
+  | TripleWord -> "TW"
+
+let draw_multipliers ctx pan =
+  let size = LTerm_draw.size ctx in
+  let screen_width = size.cols in
+  let screen_height = size.rows in
+  let board_width = screen_width / h_spacing in
+  let board_height = screen_height / v_spacing in
+  let pan_y, pan_x = pan in
+  for
+    board_col = (-board_width / 2) + pan_x to (board_width / 2) + pan_x
+  do
+    for
+      board_row = (-board_height / 2) + pan_y
+      to (board_height / 2) + pan_y
+    do
+      match multiplier_at_position (board_row, board_col) with
+      | None -> ()
+      | Some mult ->
+          let row, col =
+            get_tile_screen_position ctx pan (board_row, board_col)
+          in
+          LTerm_draw.draw_string ctx (row + 1) (col + 1)
+            (Zed_string.of_utf8 (print_multi mult))
+    done
+  done
 
 let draw_entry_highlight
     ctx
@@ -426,6 +469,13 @@ let draw_entry_tiles
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
         (Zed_char.of_utf8 (String.make 1 letter))
+        ~style:
+          {
+            LTerm_style.none with
+            foreground = Some LTerm_style.magenta;
+          };
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " ")
         ~style:
           {
             LTerm_style.none with
@@ -592,6 +642,7 @@ let draw ui_terminal matrix (game_state : game_state) =
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      let pan = game_state.board.pan in
      draw_board_gridlines ctx pan;
+     draw_multipliers ctx pan;
      draw_board_cursor ctx pan game_state.board.cursor;
      draw_board_tiles ctx pan game_state.board.tiles;
      match game_state.entry with
