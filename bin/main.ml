@@ -527,6 +527,64 @@ let draw_players ctx state =
 
   inner 0 state.players
 
+(* draw words and character highlight to be put in the selection box *)
+let draw_sel_word ctx idx word ind axis =
+  let draw_arrow = function
+    | Horizontal ->
+        LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "→")
+    | Vertical -> LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "↓")
+  in
+  draw_arrow axis;
+  let str_lst = List.of_seq (String.to_seq word) in
+  let draw_char ch col =
+    LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
+  in
+  let draw_highlighted_char ch col =
+    LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
+      ~style:
+        { LTerm_style.none with background = Some LTerm_style.cyan }
+  in
+  List.iteri
+    (fun col ch ->
+      if col = ind then draw_highlighted_char (String.make 1 ch) col
+      else draw_char (String.make 1 ch) col)
+    str_lst;
+  let points = word_points word in
+  LTerm_draw.draw_string ctx idx
+    (List.length str_lst + 1)
+    (Zed_string.of_utf8 (Printf.sprintf " (%d)" points))
+
+(* draw selection box to give information about words and letter
+   highlighted *)
+let draw_selection ctx (game_state : game_state) =
+  let { board; _ } = game_state in
+  let tile_to_str tile =
+    match tile with None -> "" | Some c -> String.make 1 c
+  in
+  let current_words = Board.get_words_at board board.cursor in
+  let find_ch_ind axis =
+    let i = ref 0 in
+    let str ind =
+      match axis with
+      | Vertical ->
+          tile_to_str
+            (get_tile board (fst board.cursor - ind, snd board.cursor))
+      | Horizontal ->
+          tile_to_str
+            (get_tile board (fst board.cursor, snd board.cursor - ind))
+    in
+    while str (!i + 1) != "" do
+      i := !i + 1
+    done;
+    !i
+  in
+  List.iteri
+    (fun idx el ->
+      let word = fst el in
+      let axis = snd el in
+      draw_sel_word ctx idx word (find_ch_ind axis) axis)
+    current_words
+
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
   let ctx_size = LTerm_draw.size ctx in
@@ -608,8 +666,8 @@ let draw ui_terminal matrix (game_state : game_state) =
      ());
     (* draw selection box *)
     let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
-    let _ = with_frame ctx " selection " LTerm_draw.Heavy in
-    ()
+    let ctx = with_frame ctx " selection " LTerm_draw.Heavy in
+    draw_selection ctx game_state
 
 let main () =
   Random.self_init ();

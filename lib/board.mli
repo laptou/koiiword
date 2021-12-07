@@ -6,6 +6,7 @@ type multiplier =
   | TripleLet
   | TripleWord
 
+
 type board = {
   (* the location of the user's cursor *)
   cursor : position;
@@ -30,7 +31,10 @@ exception Disconnected
 
 val get_words_deep : board -> string list
 
-(* val get_words_at : board -> Layout.position -> int -> string list *)
+
+val get_words_at : board -> Layout.position -> (string * axis) list
+
+
 val apply_entry_tiles :
   (position, char) Hashtbl.t ->
   position ->
