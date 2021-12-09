@@ -78,17 +78,18 @@ let refill_deck deck =
   in
   helper deck (7 - List.length deck)
 
-let rec has_vow = function
+let rec has_vowel = function
   | [] -> false
   | h :: t ->
-      if List.mem h [ 'A'; 'E'; 'I'; 'O'; 'U' ] then true else has_vow t
+      if List.mem h [ 'A'; 'E'; 'I'; 'O'; 'U' ] then true
+      else has_vowel t
 
-let insert_vow lst =
+let insert_vowel lst =
   match lst with
   | [] -> []
   | _ :: t -> get_random_letter vowel_amounts :: t
 
-let ensure_vowel lst = if has_vow lst then lst else insert_vow lst
+let ensure_vowel lst = if has_vowel lst then lst else insert_vowel lst
 
 (** [new_deck] is a letter_deck of length 7 reflecting accurate letter
     combinations. Probabilities for vowel/consonant frequency determined
