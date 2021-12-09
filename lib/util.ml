@@ -60,3 +60,8 @@ let wrap (width : int) (str : string) : string list =
     |> List.flatten
   in
   lines
+
+
+let rec range start stop step fn =
+  fn start;
+  if start + step < stop then range (start + step) stop step fn

@@ -1,4 +1,12 @@
 open Layout
+
+type multiplier =
+  | DoubleLet
+  | DoubleWord
+  | TripleLet
+  | TripleWord
+
+
 type board = {
   (* the location of the user's cursor *)
   cursor : position;
@@ -6,15 +14,30 @@ type board = {
   pan : position;
   (* the tiles on the board *)
   tiles : (position, char) Hashtbl.t;
+  multipliers : (position, multiplier) Hashtbl.t;
 }
-type axis = Horizontal | Vertical
+
+type axis =
+  | Horizontal
+  | Vertical
+
 val new_board : unit -> board
+
 val set_tile : board -> Tile.tile -> unit
+
 val get_tile : board -> position -> char option
+
 exception Disconnected
+
 val get_words_deep : board -> string list
-(* val get_words_at : board -> Layout.position -> int -> string list *)
+
+
+val get_words_at : board -> Layout.position -> (string * axis) list
+
+
 val apply_entry_tiles :
   (position, char) Hashtbl.t ->
   position ->
-  Entry.direction -> char list -> (position, char) Hashtbl.t
+  Entry.direction ->
+  char list ->
+  (position, char) Hashtbl.t
