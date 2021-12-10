@@ -126,6 +126,22 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
   let { cursor; _ } = board in
   let loop_result : loop_result =
     match evt with
+    | LTerm_event.Key { code = Tab; _ } -> (
+        match entry with
+        | SelectStart ->
+            let pan_back =
+              {
+                current_state with
+                board =
+                  {
+                    current_state.board with
+                    cursor = (0, 0);
+                    pan = (0, 0);
+                  };
+              }
+            in
+            LoopResultUpdateState pan_back
+        | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Up; _ } -> (
         match entry with
         | SelectStart ->
@@ -184,39 +200,55 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                       entry = SelectDirection { start = cursor };
                     }
               | _ -> LoopResultContinue)
-        | AddLetter { start; direction; word; deck; _ } ->
+        | AddLetter { start; direction; word; deck; _ } -> (
             if List.length word < 1 then LoopResultContinue
             else
               let old_words = get_words_deep board in
-              let old_tiles = Hashtbl.copy board.tiles in
+              let new_tiles = Hashtbl.copy board.tiles in
               let new_tiles =
-                apply_entry_tiles board.tiles start direction word
-              in
-              let new_words =
-                get_words_deep { board with tiles = new_tiles }
+                apply_entry_tiles new_tiles start direction word
               in
 
-              (* get words from char list *)
-              if List.for_all (is_word_valid dict) new_words then
-                (* if all words are valid then accept it *)
-                LoopResultUpdateState
-                  {
-                    current_state with
-                    players = update_players old_words current_state;
-                    current_player_index =
-                      (current_player_index + 1) mod List.length players;
-                    entry = SelectStart;
-                    board = { board with tiles = new_tiles };
-                  }
-              else
-                (* if any word is invalid, return their original deck
-                   and put them back in reselect state *)
+              try
+                let new_words =
+                  get_words_deep { board with tiles = new_tiles }
+                in
+
+                (* get words from char list *)
+                if List.for_all (is_word_valid dict) new_words then
+                  (* if all words are valid then accept it *)
+                  (* calculate the new state, then update player point totals *)
+                  let new_state =
+                    {
+                      current_state with
+                      entry = SelectStart;
+                      board = { board with tiles = new_tiles };
+                    }
+                  in
+                  LoopResultUpdateState
+                    {
+                      new_state with
+                      players = update_players old_words new_state;
+                      current_player_index =
+                        (current_player_index + 1)
+                        mod List.length players;
+                    }
+                else
+                  (* if any word is invalid, return their original deck
+                     and put them back in reselect state *)
+                  LoopResultUpdateState
+                    {
+                      (with_deck current_state deck) with
+                      entry = SelectStart;
+                    }
+              with Disconnected ->
+                (* if the word was entered without being connected to
+                   (0, 0), then reset *)
                 LoopResultUpdateState
                   {
                     (with_deck current_state deck) with
                     entry = SelectStart;
-                    board = { board with tiles = old_tiles };
-                  }
+                  })
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Escape; _ } -> (
         match entry with
@@ -232,6 +264,18 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         | _ ->
             LoopResultUpdateState
               { current_state with entry = SelectStart })
+    | LTerm_event.Key { code = F1; _ } -> (
+        match entry with
+        | _ ->
+            LoopResultUpdateState
+              {
+                current_state with
+                players =
+                  update_players (get_words_deep board) current_state;
+                current_player_index =
+                  (current_player_index + 1) mod List.length players;
+                entry = SelectStart;
+              })
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
         match UChar.char_of c with
@@ -335,7 +379,9 @@ let draw_board_tiles ctx pan tiles =
     (fun (position, letter) ->
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
-        (Zed_char.of_utf8 (String.make 1 letter)))
+        (Zed_char.of_utf8 (String.make 1 letter));
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " "))
     (Hashtbl.to_seq tiles)
 
 let multiplier_at_position ((row, col) : position) : multiplier option =
@@ -439,6 +485,13 @@ let draw_entry_tiles
           {
             LTerm_style.none with
             foreground = Some LTerm_style.magenta;
+          };
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " ")
+        ~style:
+          {
+            LTerm_style.none with
+            foreground = Some LTerm_style.magenta;
           })
     letter_positions
 
@@ -485,6 +538,64 @@ let draw_players ctx state =
   in
 
   inner 0 state.players
+
+(* draw words and character highlight to be put in the selection box *)
+let draw_sel_word ctx idx word ind axis =
+  let draw_arrow = function
+    | Horizontal ->
+        LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "→")
+    | Vertical -> LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "↓")
+  in
+  draw_arrow axis;
+  let str_lst = List.of_seq (String.to_seq word) in
+  let draw_char ch col =
+    LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
+  in
+  let draw_highlighted_char ch col =
+    LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
+      ~style:
+        { LTerm_style.none with background = Some LTerm_style.cyan }
+  in
+  List.iteri
+    (fun col ch ->
+      if col = ind then draw_highlighted_char (String.make 1 ch) col
+      else draw_char (String.make 1 ch) col)
+    str_lst;
+  let points = word_points word in
+  LTerm_draw.draw_string ctx idx
+    (List.length str_lst + 1)
+    (Zed_string.of_utf8 (Printf.sprintf " (%d)" points))
+
+(* draw selection box to give information about words and letter
+   highlighted *)
+let draw_selection ctx (game_state : game_state) =
+  let { board; _ } = game_state in
+  let tile_to_str tile =
+    match tile with None -> "" | Some c -> String.make 1 c
+  in
+  let current_words = Board.get_words_at board board.cursor in
+  let find_ch_ind axis =
+    let i = ref 0 in
+    let str ind =
+      match axis with
+      | Vertical ->
+          tile_to_str
+            (get_tile board (fst board.cursor - ind, snd board.cursor))
+      | Horizontal ->
+          tile_to_str
+            (get_tile board (fst board.cursor, snd board.cursor - ind))
+    in
+    while str (!i + 1) != "" do
+      i := !i + 1
+    done;
+    !i
+  in
+  List.iteri
+    (fun idx el ->
+      let word = fst el in
+      let axis = snd el in
+      draw_sel_word ctx idx word (find_ch_ind axis) axis)
+    current_words
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -543,9 +654,9 @@ let draw ui_terminal matrix (game_state : game_state) =
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      let pan = game_state.board.pan in
      draw_board_gridlines ctx pan;
+     draw_multipliers ctx pan;
      draw_board_cursor ctx pan game_state.board.cursor;
      draw_board_tiles ctx pan game_state.board.tiles;
-     draw_multipliers ctx pan;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
          draw_entry_highlight ctx pan start direction;
@@ -567,8 +678,8 @@ let draw ui_terminal matrix (game_state : game_state) =
      ());
     (* draw selection box *)
     let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
-    let _ = with_frame ctx " selection " LTerm_draw.Heavy in
-    ()
+    let ctx = with_frame ctx " selection " LTerm_draw.Heavy in
+    draw_selection ctx game_state
 
 let main () =
   Random.self_init ();
