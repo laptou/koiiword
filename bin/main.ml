@@ -9,6 +9,7 @@ open Koiiword.Generate_letters
 open Koiiword.Player
 open Koiiword.Points
 open Koiiword.Entry
+open Koiiword.Util
 open Koiiword.Dictionary
 open CamomileLibrary
 
@@ -334,10 +335,6 @@ let get_tile_screen_position ctx (pan_row, pan_col) (row, col) =
   (row * v_spacing, col * h_spacing)
 
 let draw_board_gridlines ctx pan =
-  let rec range start stop step fn =
-    fn start;
-    if start + step < stop then range (start + step) stop step fn
-  in
   let size = LTerm_draw.size ctx in
   let width = size.cols in
   let height = size.rows in
@@ -346,11 +343,11 @@ let draw_board_gridlines ctx pan =
   in
 
   (* draw hlines *)
-  range 0 height v_spacing (fun row ->
+  Util.range 0 height v_spacing (fun row ->
       LTerm_draw.draw_hline ctx row 0 width ~style LTerm_draw.Light);
 
   (* draw vlines *)
-  range 0 width h_spacing (fun col ->
+  Util.range 0 width h_spacing (fun col ->
       LTerm_draw.draw_vline ctx 0 col height ~style LTerm_draw.Light);
 
   (* draw center star *)
@@ -382,8 +379,54 @@ let draw_board_tiles ctx pan tiles =
     (fun (position, letter) ->
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
-        (Zed_char.of_utf8 (String.make 1 letter)))
+        (Zed_char.of_utf8 (String.make 1 letter));
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " "))
     (Hashtbl.to_seq tiles)
+
+let multiplier_at_position ((row, col) : position) : multiplier option =
+  let row = wrap row 17 in
+  let col = wrap col 17 in
+
+  let row = abs row in
+  let col = abs col in
+  if row = col then Some DoubleWord
+  else if row - col = 2 then Some TripleWord
+  else if row - col = 6 then Some DoubleLet
+  else if row - col = 7 then Some TripleLet
+  else None
+
+let print_multi (m_type : multiplier) =
+  match m_type with
+  | DoubleLet -> "DL"
+  | DoubleWord -> "DW"
+  | TripleLet -> "TL"
+  | TripleWord -> "TW"
+
+let draw_multipliers ctx pan =
+  let size = LTerm_draw.size ctx in
+  let screen_width = size.cols in
+  let screen_height = size.rows in
+  let board_width = screen_width / h_spacing in
+  let board_height = screen_height / v_spacing in
+  let pan_y, pan_x = pan in
+  for
+    board_col = (-board_width / 2) + pan_x to (board_width / 2) + pan_x
+  do
+    for
+      board_row = (-board_height / 2) + pan_y
+      to (board_height / 2) + pan_y
+    do
+      match multiplier_at_position (board_row, board_col) with
+      | None -> ()
+      | Some mult ->
+          let row, col =
+            get_tile_screen_position ctx pan (board_row, board_col)
+          in
+          LTerm_draw.draw_string ctx (row + 1) (col + 1)
+            (Zed_string.of_utf8 (print_multi mult))
+    done
+  done
 
 let draw_entry_highlight
     ctx
@@ -426,6 +469,13 @@ let draw_entry_tiles
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
         (Zed_char.of_utf8 (String.make 1 letter))
+        ~style:
+          {
+            LTerm_style.none with
+            foreground = Some LTerm_style.magenta;
+          };
+      LTerm_draw.draw_char ctx (row + 1) (col + 2)
+        (Zed_char.of_utf8 " ")
         ~style:
           {
             LTerm_style.none with
@@ -476,6 +526,64 @@ let draw_players ctx state =
   in
 
   inner 0 state.players
+
+(* draw words and character highlight to be put in the selection box *)
+let draw_sel_word ctx idx word ind axis =
+  let draw_arrow = function
+    | Horizontal ->
+        LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "→")
+    | Vertical -> LTerm_draw.draw_char ctx idx 0 (Zed_char.of_utf8 "↓")
+  in
+  draw_arrow axis;
+  let str_lst = List.of_seq (String.to_seq word) in
+  let draw_char ch col =
+    LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
+  in
+  let draw_highlighted_char ch col =
+    LTerm_draw.draw_char ctx idx (col + 1) (Zed_char.of_utf8 ch)
+      ~style:
+        { LTerm_style.none with background = Some LTerm_style.cyan }
+  in
+  List.iteri
+    (fun col ch ->
+      if col = ind then draw_highlighted_char (String.make 1 ch) col
+      else draw_char (String.make 1 ch) col)
+    str_lst;
+  let points = word_points word in
+  LTerm_draw.draw_string ctx idx
+    (List.length str_lst + 1)
+    (Zed_string.of_utf8 (Printf.sprintf " (%d)" points))
+
+(* draw selection box to give information about words and letter
+   highlighted *)
+let draw_selection ctx (game_state : game_state) =
+  let { board; _ } = game_state in
+  let tile_to_str tile =
+    match tile with None -> "" | Some c -> String.make 1 c
+  in
+  let current_words = Board.get_words_at board board.cursor in
+  let find_ch_ind axis =
+    let i = ref 0 in
+    let str ind =
+      match axis with
+      | Vertical ->
+          tile_to_str
+            (get_tile board (fst board.cursor - ind, snd board.cursor))
+      | Horizontal ->
+          tile_to_str
+            (get_tile board (fst board.cursor, snd board.cursor - ind))
+    in
+    while str (!i + 1) != "" do
+      i := !i + 1
+    done;
+    !i
+  in
+  List.iteri
+    (fun idx el ->
+      let word = fst el in
+      let axis = snd el in
+      draw_sel_word ctx idx word (find_ch_ind axis) axis)
+    current_words
 
 let with_grid_cell ctx layout_spec row_start row_span col_start col_span
     =
@@ -534,6 +642,7 @@ let draw ui_terminal matrix (game_state : game_state) =
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
      let pan = game_state.board.pan in
      draw_board_gridlines ctx pan;
+     draw_multipliers ctx pan;
      draw_board_cursor ctx pan game_state.board.cursor;
      draw_board_tiles ctx pan game_state.board.tiles;
      match game_state.entry with
@@ -557,8 +666,8 @@ let draw ui_terminal matrix (game_state : game_state) =
      ());
     (* draw selection box *)
     let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
-    let _ = with_frame ctx " selection " LTerm_draw.Heavy in
-    ()
+    let ctx = with_frame ctx " selection " LTerm_draw.Heavy in
+    draw_selection ctx game_state
 
 let main () =
   Random.self_init ();
