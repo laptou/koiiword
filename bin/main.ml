@@ -492,7 +492,7 @@ let draw_instructions ctx instructions =
   let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
   let ctx_size = LTerm_draw.size ctx in
   let lines =
-    instructions |> Instructions.text |> Util.wrap ctx_size.cols
+    instructions |> Instructions.text |> Util.text_wrap ctx_size.cols
     |> List.map Zed_string.of_utf8
   in
   List.iteri
