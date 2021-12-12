@@ -120,7 +120,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
   let%lwt evt = LTerm_ui.wait ui in
   let current_state = !game_state in
-  let { board; players; entry; current_player_index; dict } =
+  let { board; players; entry; current_player_index; dict; _ } =
     current_state
   in
   let { cursor; _ } = board in
@@ -187,6 +187,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   {
                     current_state with
                     entry = SelectDirection { start = cursor };
+                    instructions = Instructions.EntrySelectDirection;
                   }
               else LoopResultContinue
             else
@@ -403,6 +404,13 @@ let print_multi (m_type : multiplier) =
   | TripleLet -> "TL"
   | TripleWord -> "TW"
 
+let get_multi_color (m_type : multiplier) =
+  match m_type with
+  | DoubleLet -> Some LTerm_style.cyan
+  | DoubleWord -> Some LTerm_style.magenta
+  | TripleLet -> Some LTerm_style.green
+  | TripleWord -> Some LTerm_style.red
+
 let draw_multipliers ctx pan =
   let size = LTerm_draw.size ctx in
   let screen_width = size.cols in
@@ -425,6 +433,11 @@ let draw_multipliers ctx pan =
           in
           LTerm_draw.draw_string ctx (row + 1) (col + 1)
             (Zed_string.of_utf8 (print_multi mult))
+            ~style:
+              {
+                LTerm_style.none with
+                background = get_multi_color mult;
+              }
     done
   done
 
@@ -482,6 +495,21 @@ let draw_entry_tiles
             foreground = Some LTerm_style.magenta;
           })
     letter_positions
+
+let draw_instructions ctx instructions =
+  let ctx_size = LTerm_draw.size ctx in
+  let ctx_rect =
+    { row1 = 0; row2 = ctx_size.rows; col1 = 0; col2 = ctx_size.cols }
+  in
+  let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
+  let ctx_size = LTerm_draw.size ctx in
+  let lines =
+    instructions |> Instructions.text |> Util.text_wrap ctx_size.cols
+    |> List.map Zed_string.of_utf8
+  in
+  List.iteri
+    (fun row line -> LTerm_draw.draw_string ctx row 0 line)
+    lines
 
 (* draw letters to letter box given a player's letter deck [deck] *)
 let draw_letters ctx deck =
@@ -635,21 +663,19 @@ let draw ui_terminal matrix (game_state : game_state) =
       { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
     in
     let ctx = LTerm_draw.sub ctx rect in
-    let players = game_state.players in
     (* draw board *)
-    let current_player_index = game_state.current_player_index in
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
      let ctx = with_frame ctx " board " LTerm_draw.Heavy in
-     let pan = game_state.board.pan in
+     let { board; _ } = game_state in
+     let { pan; cursor; tiles; _ } = board in
      draw_board_gridlines ctx pan;
      draw_multipliers ctx pan;
-     draw_board_cursor ctx pan game_state.board.cursor;
-     draw_board_tiles ctx pan game_state.board.tiles;
+     draw_board_cursor ctx pan cursor;
+     draw_board_tiles ctx pan tiles;
      match game_state.entry with
      | AddLetter { start; direction; word; _ } ->
          draw_entry_highlight ctx pan start direction;
-         draw_entry_tiles ctx pan game_state.board.tiles start direction
-           word
+         draw_entry_tiles ctx pan tiles start direction word
      | _ -> ());
     (* draw players box *)
     (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
@@ -657,13 +683,15 @@ let draw ui_terminal matrix (game_state : game_state) =
      draw_players ctx game_state);
     (* draw letters box *)
     (let ctx = with_grid_cell ctx layout_spec 1 2 0 1 in
-     let _ = with_frame ctx " letters " LTerm_draw.Heavy in
-     let current_player = List.nth players current_player_index in
-     draw_letters ctx current_player.letters);
+     let ctx = with_frame ctx " letters " LTerm_draw.Heavy in
+     let { players; current_player_index; _ } = game_state in
+     let { letters; _ } = List.nth players current_player_index in
+     draw_letters ctx letters);
     (* draw prompt box *)
     (let ctx = with_grid_cell ctx layout_spec 2 1 1 1 in
-     let _ = with_frame ctx "" LTerm_draw.Heavy in
-     ());
+     let ctx = with_frame ctx "" LTerm_draw.Heavy in
+     let { instructions; _ } = game_state in
+     draw_instructions ctx instructions);
     (* draw selection box *)
     let ctx = with_grid_cell ctx layout_spec 2 1 2 1 in
     let ctx = with_frame ctx " selection " LTerm_draw.Heavy in
@@ -688,6 +716,7 @@ let main () =
         board = new_board ();
         players = sort_players player_lst;
         entry = SelectStart;
+        instructions = Instructions.StartGame;
         current_player_index = 0;
         dict = dictionary;
       }
