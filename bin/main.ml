@@ -176,7 +176,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
         | _ -> LoopResultContinue)
     | LTerm_event.Key { code = Enter; _ } -> (
         match entry with
-        | SelectStart -> (
+        | SelectStart ->
             if
               (* if this is the first tile the user is placing, they
                  have to place it at (0, 0) *)
@@ -191,16 +191,12 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   }
               else LoopResultContinue
             else
-              (* only allow the player to start a word here if there is
-                 no tile at this location *)
-              match get_tile board cursor with
-              | None ->
-                  LoopResultUpdateState
-                    {
-                      current_state with
-                      entry = SelectDirection { start = cursor };
-                    }
-              | _ -> LoopResultContinue)
+              LoopResultUpdateState
+                {
+                  current_state with
+                  entry = SelectDirection { start = cursor };
+                  instructions = Instructions.EntrySelectDirection;
+                }
         | AddLetter { start; direction; word; deck; _ } -> (
             if List.length word < 1 then LoopResultContinue
             else
@@ -223,6 +219,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                     {
                       current_state with
                       entry = SelectStart;
+                      instructions = Instructions.EntrySelectStart;
                       board = { board with tiles = new_tiles };
                     }
                   in
@@ -240,6 +237,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                   LoopResultUpdateState
                     {
                       (with_deck current_state deck) with
+                      instructions = Instructions.EntrySelectStart;
                       entry = SelectStart;
                     }
               with Disconnected ->
@@ -248,6 +246,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 LoopResultUpdateState
                   {
                     (with_deck current_state deck) with
+                    instructions = Instructions.EntrySelectStart;
                     entry = SelectStart;
                   })
         | _ -> LoopResultContinue)
@@ -259,12 +258,17 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
             LoopResultUpdateState
               {
                 (with_deck current_state deck) with
+                instructions = Instructions.EntrySelectStart;
                 entry = SelectStart;
               }
         (* otherwise, just switch back to select start mode *)
         | _ ->
             LoopResultUpdateState
-              { current_state with entry = SelectStart })
+              {
+                current_state with
+                entry = SelectStart;
+                instructions = Instructions.EntrySelectStart;
+              })
     | LTerm_event.Key { code = F1; _ } -> (
         match entry with
         | _ ->
@@ -276,6 +280,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
                 current_player_index =
                   (current_player_index + 1) mod List.length players;
                 entry = SelectStart;
+                instructions = Instructions.EntrySelectStart;
               })
     | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
       -> (
@@ -504,7 +509,8 @@ let draw_instructions ctx instructions =
   let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
   let ctx_size = LTerm_draw.size ctx in
   let lines =
-    instructions |> Instructions.text |> Util.text_wrap ctx_size.cols
+    instructions |> Instructions.text
+    |> Util.text_wrap ctx_size.cols
     |> List.map Zed_string.of_utf8
   in
   List.iteri
