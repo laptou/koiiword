@@ -9,7 +9,9 @@ let dict_from_file (file_name : string) : dictionary =
   let ht = Hashtbl.create 400000 in
   try
     while true do
-      let line = String.uppercase_ascii (String.trim (input_line ic)) in
+      let line =
+        input_line ic |> String.trim |> String.uppercase_ascii
+      in
       Hashtbl.add ht line ()
     done;
     ht
@@ -22,4 +24,3 @@ let dict_from_file (file_name : string) : dictionary =
     otherwise *)
 let is_word_valid (dict : dictionary) (word : string) =
   Hashtbl.mem dict (String.uppercase_ascii word)
-
