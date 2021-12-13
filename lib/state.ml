@@ -13,7 +13,19 @@ type gameplay_state = {
   dict : dictionary;
 }
 
+type victory_state = { winner : player }
+
 type game_state =
   | Title
   | Gameplay of gameplay_state
-  | Victory of player
+  | Victory of victory_state
+
+let blank_gameplay_state player_lst dictionary =
+  {
+    board = new_board ();
+    players =  player_lst;
+    entry = SelectStart;
+    instructions = Instructions.StartGame;
+    current_player_index = 0;
+    dict = dictionary;
+  }
