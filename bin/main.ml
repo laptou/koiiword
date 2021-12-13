@@ -245,7 +245,11 @@ let loop_gameplay (evt : LTerm_event.t) (current_state : gameplay_state)
                 in
                 if current_player.points >= 10 then
                   LoopResultUpdateState
-                    (Victory { winner = current_player })
+                    (Victory
+                       {
+                         winner = current_player;
+                         players = new_state.players;
+                       })
                 else
                   LoopResultUpdateState
                     (Gameplay
@@ -341,30 +345,85 @@ let loop_gameplay (evt : LTerm_event.t) (current_state : gameplay_state)
       | _ -> LoopResultContinue)
   | _ -> LoopResultContinue
 
-let loop_victory (evt : LTerm_event.t) (_ : victory_state) : loop_result
-    =
+let loop_victory (evt : LTerm_event.t) (victory_state : victory_state) :
+    loop_result =
   match evt with
   | LTerm_event.Key _ ->
       let dictionary = Lazy.force global_dictionary in
+      LoopResultUpdateState
+        (Gameplay
+           (blank_gameplay_state victory_state.players dictionary))
+  | _ -> LoopResultContinue
 
-      (* Define players *)
-      let player1 =
-        { name = "P1"; points = 0; letters = new_deck () }
-      in
-      let player2 =
-        { name = "P2"; points = 0; letters = new_deck () }
-      in
-      let player3 =
-        { name = "P3"; points = 0; letters = new_deck () }
-      in
-      let player4 =
-        { name = "P4"; points = 0; letters = new_deck () }
-      in
-      let player_lst =
-        sort_players [ player1; player2; player3; player4 ]
+let loop_title (evt : LTerm_event.t) (title_state : title_state) :
+    loop_result =
+  match evt with
+  | LTerm_event.Key { code = LTerm_key.Char c; control = false; _ } ->
+      let c = UChar.char_of c in
+      let c = String.make 1 c in
+      let rec update_last_player_name players =
+        match players with
+        | [] -> [ { name = c; points = 0; letters = new_deck () } ]
+        | [ last ] -> [ { last with name = last.name ^ c } ]
+        | current :: remainder ->
+            current :: update_last_player_name remainder
       in
       LoopResultUpdateState
-        (Gameplay (blank_gameplay_state player_lst dictionary))
+        (Title { players = update_last_player_name title_state.players })
+  | LTerm_event.Key { code = LTerm_key.Char c; control = true; _ }
+    when UChar.char_of c == 'c' ->
+      LoopResultExit
+  | LTerm_event.Key { code = LTerm_key.Enter; _ } ->
+      if
+        List.length title_state.players > 1
+        && List.for_all
+             (fun player -> player.name != "")
+             title_state.players
+      then
+        LoopResultUpdateState
+          (Gameplay
+             (blank_gameplay_state title_state.players
+                (Lazy.force global_dictionary)))
+      else LoopResultContinue
+  | LTerm_event.Key { code = LTerm_key.Tab; _ } ->
+      LoopResultUpdateState
+        (Title
+           {
+             players =
+               title_state.players
+               @ [ { name = ""; points = 0; letters = new_deck () } ];
+           })
+  | LTerm_event.Key { code = LTerm_key.Delete; _ } ->
+      let rec remove_last_player players =
+        match players with
+        | [] -> []
+        (* if only one player remains, clear their name instead of
+           deleting them *)
+        | [ player ] -> [ { player with name = "" } ]
+        | current :: remainder ->
+            current :: remove_last_player remainder
+      in
+      LoopResultUpdateState
+        (Title { players = remove_last_player title_state.players })
+  | LTerm_event.Key { code = LTerm_key.Backspace; _ } ->
+      let rec update_last_player_name players =
+        match players with
+        | [] -> []
+        | [ last ] ->
+            if String.length last.name > 0 then
+              [
+                {
+                  last with
+                  name =
+                    String.sub last.name 0 (String.length last.name - 1);
+                };
+              ]
+            else [ last ]
+        | current :: remainder ->
+            current :: update_last_player_name remainder
+      in
+      LoopResultUpdateState
+        (Title { players = update_last_player_name title_state.players })
   | _ -> LoopResultContinue
 
 (** The game loop. This loop runs for as long as the game is running,
@@ -377,7 +436,7 @@ let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     match current_state with
     | Gameplay gameplay_state -> loop_gameplay evt gameplay_state
     | Victory victory_state -> loop_victory evt victory_state
-    | _ -> failwith "unimplemented"
+    | Title title_state -> loop_title evt title_state
   in
   match loop_result with
   | LoopResultExit -> return_unit
@@ -602,8 +661,8 @@ let player_display player =
   String.concat " : " [ player.name; string_of_int player.points ]
 
 (* draw players to players box given a list of game_state.players *)
-let draw_players ctx state =
-  let num_players = List.length state.players in
+let draw_players ctx (gameplay_state : gameplay_state) =
+  let num_players = List.length gameplay_state.players in
   let rec inner idx = function
     | [] -> ()
     | h :: t ->
@@ -618,11 +677,11 @@ let draw_players ctx state =
           ~style:
             {
               LTerm_style.none with
-              reverse = Some (idx = state.current_player_index);
+              reverse = Some (idx = gameplay_state.current_player_index);
             }
   in
 
-  inner 0 state.players
+  inner 0 gameplay_state.players
 
 (* draw words and character highlight to be put in the selection box *)
 let draw_sel_word ctx idx word ind axis =
@@ -706,8 +765,6 @@ let with_frame ctx label connection =
   let ctx = LTerm_draw.sub ctx (inset ctx_rect 1) in
   ctx
 
-let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] }
-
 let draw_gameplay ui_terminal matrix (gameplay_state : gameplay_state) =
   let size = LTerm_ui.size ui_terminal in
   let ctx = LTerm_draw.context matrix size in
@@ -723,6 +780,7 @@ let draw_gameplay ui_terminal matrix (gameplay_state : gameplay_state) =
     let rect =
       { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
     in
+    let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] } in
     let ctx = LTerm_draw.sub ctx rect in
     (* draw board *)
     (let ctx = with_grid_cell ctx layout_spec 0 2 1 2 in
@@ -781,31 +839,86 @@ let draw_victory ui_terminal matrix (victory_state : victory_state) =
       H_align_center
       (Zed_string.of_utf8 "press any key to restart")
 
+let draw_title ui_terminal matrix (title_state : title_state) =
+  let size = LTerm_ui.size ui_terminal in
+  let ctx = LTerm_draw.context matrix size in
+  LTerm_draw.clear ctx;
+
+  if size.rows < 15 || size.cols < 30 then
+    LTerm_draw.draw_string_aligned ctx (size.rows / 2) H_align_center
+      (Zed_string.of_utf8 "please make \n your terminal bigger")
+  else
+    let layout_spec = { cols = [ 1.0 ]; rows = [ 0.3; 0.6 ] } in
+    let logo =
+      {|
+    / ___      ___     ( ) ( )               ___      __      ___   /  
+   //\ \     //   ) ) / / / / //  / /  / / //   ) ) //  ) ) //   ) /   
+  //  \ \   //   / / / / / / //  / /  / / //   / / //      //   / /    
+ //    \ \ ((___/ / / / / / ((__( (__/ / ((___/ / //      ((___/ /     
+ |}
+    in
+    (let ctx = with_grid_cell ctx layout_spec 0 1 0 1 in
+     let size = LTerm_draw.size ctx in
+     LTerm_draw.draw_string_aligned ctx
+       ((size.rows / 2) - 2)
+       H_align_center
+       ~style:{ LTerm_style.none with bold = Some true }
+       (Zed_string.of_utf8 logo));
+
+    (let ctx = with_grid_cell ctx layout_spec 1 1 0 1 in
+     LTerm_draw.draw_string_aligned ctx 0 H_align_center
+       (Zed_string.of_utf8 "type to enter the name of a player");
+     LTerm_draw.draw_string_aligned ctx 1 H_align_center
+       (Zed_string.of_utf8 "press [tab] to add another player");
+     LTerm_draw.draw_string_aligned ctx 2 H_align_center
+       (Zed_string.of_utf8 "press [delete] to remove the current player");
+     LTerm_draw.draw_string_aligned ctx 3 H_align_center
+       (Zed_string.of_utf8 "press [ctrl-c] to quit");
+     LTerm_draw.draw_string_aligned ctx 4 H_align_center
+       (Zed_string.of_utf8 "press [enter] to start the game"));
+
+    let ctx = with_grid_cell ctx layout_spec 2 1 0 1 in
+    let size = LTerm_draw.size ctx in
+    let start_col = (size.cols / 2) - 15 in
+    List.iteri
+      (fun idx player ->
+        let text_player_num = "P" ^ string_of_int (idx + 1) ^ ": " in
+        LTerm_draw.draw_string ctx idx start_col
+          ~style:{ LTerm_style.none with bold = Some true }
+          (Zed_string.of_utf8 text_player_num);
+        if player.name = "" then
+          LTerm_draw.draw_string ctx idx (start_col + 4)
+            ~style:
+              {
+                LTerm_style.none with
+                foreground = Some LTerm_style.white;
+              }
+            (Zed_string.of_utf8 "<no name>")
+        else
+          LTerm_draw.draw_string ctx idx (start_col + 4)
+            (Zed_string.of_utf8 player.name))
+      title_state.players
+
 let draw ui_terminal matrix game_state =
   match game_state with
   | Gameplay gameplay_state ->
       draw_gameplay ui_terminal matrix gameplay_state
   | Victory victory_state ->
       draw_victory ui_terminal matrix victory_state
-  | _ -> failwith "unimplemented"
+  | Title title_state -> draw_title ui_terminal matrix title_state
 
 let main () =
   Random.self_init ();
 
-  let dictionary = Lazy.force global_dictionary in
-  (* Define players *)
-  let player1 = { name = "P1"; points = 0; letters = new_deck () } in
-  let player2 = { name = "P2"; points = 0; letters = new_deck () } in
-  let player3 = { name = "P3"; points = 0; letters = new_deck () } in
-  let player4 = { name = "P4"; points = 0; letters = new_deck () } in
-  let player_lst =
-    sort_players [ player1; player2; player3; player4 ]
-  in
-
   let* term = Lazy.force LTerm.stdout in
 
   let game_state : game_state ref =
-    ref (Gameplay (blank_gameplay_state player_lst dictionary))
+    ref
+      (Title
+         {
+           players =
+             [ { name = ""; points = 0; letters = new_deck () } ];
+         })
   in
 
   let* ui =
