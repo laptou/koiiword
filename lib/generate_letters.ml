@@ -61,6 +61,19 @@ let realistic_random_letter () =
   if Random.int 26 < 5 then get_random_letter vowel_amounts
   else get_random_letter consonant_amounts
 
+let rec has_vowel = function
+  | [] -> false
+  | h :: t ->
+      if List.mem h [ 'A'; 'E'; 'I'; 'O'; 'U' ] then true
+      else has_vowel t
+
+let insert_vowel lst =
+  match lst with
+  | [] -> []
+  | _ :: t -> get_random_letter vowel_amounts :: t
+
+let ensure_vowel lst = if has_vowel lst then lst else insert_vowel lst
+
 (** [consume_letter letter deck] removes the first instance of [letter]
     from [deck]. Raises [Not_found] if [deck] does not contain [letter] *)
 let consume_letter letter deck =
@@ -76,20 +89,7 @@ let refill_deck deck =
     if n = 0 then partial_lst
     else realistic_random_letter () :: helper partial_lst (n - 1)
   in
-  helper deck (7 - List.length deck)
-
-let rec has_vowel = function
-  | [] -> false
-  | h :: t ->
-      if List.mem h [ 'A'; 'E'; 'I'; 'O'; 'U' ] then true
-      else has_vowel t
-
-let insert_vowel lst =
-  match lst with
-  | [] -> []
-  | _ :: t -> get_random_letter vowel_amounts :: t
-
-let ensure_vowel lst = if has_vowel lst then lst else insert_vowel lst
+  ensure_vowel (helper deck (7 - List.length deck))
 
 (** [new_deck] is a letter_deck of length 7 reflecting accurate letter
     combinations. Probabilities for vowel/consonant frequency determined
