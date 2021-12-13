@@ -4,7 +4,7 @@ open Entry
 open Dictionary
 open Instructions
 
-type game_state = {
+type gameplay_state = {
   board : board;
   players : player list;
   entry : entry_state;
@@ -12,3 +12,8 @@ type game_state = {
   current_player_index : int;
   dict : dictionary;
 }
+
+type game_state =
+  | Title
+  | Gameplay of gameplay_state
+  | Victory of player
