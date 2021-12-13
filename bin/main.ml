@@ -13,6 +13,17 @@ open Koiiword.Util
 open Koiiword.Dictionary
 open CamomileLibrary
 
+let ( let* ) = Lwt.bind
+
+let global_dictionary : dictionary Lazy.t =
+  Lazy.from_fun (fun _ -> dict_from_file "dictionary/english_dict.txt")
+
+(** [sort_players players] is a list of players types sorted
+    lexicographically by name. *)
+let sort_players players =
+  let comp p1 p2 = Stdlib.compare p1.name p2.name in
+  List.sort comp players
+
 (** The [loop_result] type describes the response of the gameplay loop
     to an event. Currently, the game can respond by doing nothing
     ([LoopResultContinue]), updating the gameplay state and re-rendering
@@ -36,21 +47,27 @@ let get_point_delta
       else score + word_points word)
     0 current_words
 
-(* [update_players state] is an updated list of players with their most
-   current scores *)
-let update_players
+(* [with_updated_player_score prev_state current_state]returns a
+   gameplay state where the current player's score has been increased by
+   the value of the words that were added between [prev_state] and
+   [current_state] *)
+let with_updated_player_score
     (prev_state : gameplay_state)
-    (current_state : gameplay_state) : player list =
+    (current_state : gameplay_state) : gameplay_state =
   let current_player =
     List.nth current_state.players current_state.current_player_index
   in
-  Util.set current_state.players current_state.current_player_index
-    {
-      current_player with
-      points =
-        current_player.points + get_point_delta prev_state current_state;
-      letters = refill_deck current_player.letters;
-    }
+  let players =
+    Util.set current_state.players current_state.current_player_index
+      {
+        current_player with
+        points =
+          current_player.points
+          + get_point_delta prev_state current_state;
+        letters = refill_deck current_player.letters;
+      }
+  in
+  { current_state with players }
 
 let with_input_direction
     (start : position)
@@ -219,15 +236,25 @@ let loop_gameplay (evt : LTerm_event.t) (current_state : gameplay_state)
                     board = { board with tiles = new_tiles };
                   }
                 in
-                LoopResultUpdateState
-                  (Gameplay
-                     {
-                       new_state with
-                       players = update_players current_state new_state;
-                       current_player_index =
-                         (current_player_index + 1)
-                         mod List.length players;
-                     })
+                let new_state =
+                  with_updated_player_score current_state new_state
+                in
+                let current_player =
+                  List.nth new_state.players
+                    new_state.current_player_index
+                in
+                if current_player.points >= 10 then
+                  LoopResultUpdateState
+                    (Victory { winner = current_player })
+                else
+                  LoopResultUpdateState
+                    (Gameplay
+                       {
+                         new_state with
+                         current_player_index =
+                           (current_player_index + 1)
+                           mod List.length players;
+                       })
               else
                 (* if any word is invalid, return their original deck
                    and put them back in reselect state *)
@@ -314,15 +341,42 @@ let loop_gameplay (evt : LTerm_event.t) (current_state : gameplay_state)
       | _ -> LoopResultContinue)
   | _ -> LoopResultContinue
 
+let loop_victory (evt : LTerm_event.t) (_ : victory_state) : loop_result
+    =
+  match evt with
+  | LTerm_event.Key _ ->
+      let dictionary = Lazy.force global_dictionary in
+
+      (* Define players *)
+      let player1 =
+        { name = "P1"; points = 0; letters = new_deck () }
+      in
+      let player2 =
+        { name = "P2"; points = 0; letters = new_deck () }
+      in
+      let player3 =
+        { name = "P3"; points = 0; letters = new_deck () }
+      in
+      let player4 =
+        { name = "P4"; points = 0; letters = new_deck () }
+      in
+      let player_lst =
+        sort_players [ player1; player2; player3; player4 ]
+      in
+      LoopResultUpdateState
+        (Gameplay (blank_gameplay_state player_lst dictionary))
+  | _ -> LoopResultContinue
+
 (** The game loop. This loop runs for as long as the game is running,
     and changes the game's state in response to events. *)
 let rec loop (ui : LTerm_ui.t) (game_state : game_state ref) :
     unit Lwt.t =
-  let%lwt evt = LTerm_ui.wait ui in
+  let* evt = LTerm_ui.wait ui in
   let current_state = !game_state in
   let loop_result =
     match current_state with
     | Gameplay gameplay_state -> loop_gameplay evt gameplay_state
+    | Victory victory_state -> loop_victory evt victory_state
     | _ -> failwith "unimplemented"
   in
   match loop_result with
@@ -653,12 +707,6 @@ let with_frame ctx label connection =
 
 let layout_spec = { cols = [ 0.3; 0.7 ]; rows = [ 0.4; 0.6 ] }
 
-(** [sort_players players] is a list of players types sorted
-    lexicographically by name. *)
-let sort_players players =
-  let comp p1 p2 = Stdlib.compare p1.name p2.name in
-  List.sort comp players
-
 let draw_gameplay ui_terminal matrix (gameplay_state : gameplay_state) =
   let size = LTerm_ui.size ui_terminal in
   let ctx = LTerm_draw.context matrix size in
@@ -709,39 +757,57 @@ let draw_gameplay ui_terminal matrix (gameplay_state : gameplay_state) =
     let ctx = with_frame ctx " selection " LTerm_draw.Heavy in
     draw_selection ctx gameplay_state
 
+let draw_victory ui_terminal matrix (victory_state : victory_state) =
+  let size = LTerm_ui.size ui_terminal in
+  let ctx = LTerm_draw.context matrix size in
+  LTerm_draw.clear ctx;
+  LTerm_draw.draw_hline ctx 0 0 size.cols LTerm_draw.Heavy;
+  LTerm_draw.draw_string_aligned ctx 0 H_align_center
+    ~style:{ LTerm_style.none with bold = Some true }
+    (Zed_string.of_utf8 " koiiword ");
+  if size.rows < 15 || size.cols < 30 then
+    LTerm_draw.draw_string_aligned ctx (size.rows / 2) H_align_center
+      (Zed_string.of_utf8 "please make \n your terminal bigger")
+  else
+    let rect =
+      { row1 = 1; col1 = 0; row2 = size.rows - 1; col2 = size.cols }
+    in
+    let ctx = LTerm_draw.sub ctx rect in
+    LTerm_draw.draw_string_aligned ctx (size.rows / 2) H_align_center
+      (Zed_string.of_utf8 (victory_state.winner.name ^ " has won"));
+    LTerm_draw.draw_string_aligned ctx
+      ((size.rows / 2) + 1)
+      H_align_center
+      (Zed_string.of_utf8 "press any key to restart")
+
 let draw ui_terminal matrix game_state =
   match game_state with
   | Gameplay gameplay_state ->
       draw_gameplay ui_terminal matrix gameplay_state
+  | Victory victory_state ->
+      draw_victory ui_terminal matrix victory_state
   | _ -> failwith "unimplemented"
 
 let main () =
   Random.self_init ();
 
-  let dictionary = dict_from_file "dictionary/english_dict.txt" in
+  let dictionary = Lazy.force global_dictionary in
   (* Define players *)
   let player1 = { name = "P1"; points = 0; letters = new_deck () } in
   let player2 = { name = "P2"; points = 0; letters = new_deck () } in
   let player3 = { name = "P3"; points = 0; letters = new_deck () } in
   let player4 = { name = "P4"; points = 0; letters = new_deck () } in
-  let player_lst = [ player1; player2; player3; player4 ] in
-
-  let%lwt term = Lazy.force LTerm.stdout in
-
-  let game_state : game_state ref =
-    ref
-      (Gameplay
-         {
-           board = new_board ();
-           players = sort_players player_lst;
-           entry = SelectStart;
-           instructions = Instructions.StartGame;
-           current_player_index = 0;
-           dict = dictionary;
-         })
+  let player_lst =
+    sort_players [ player1; player2; player3; player4 ]
   in
 
-  let%lwt ui =
+  let* term = Lazy.force LTerm.stdout in
+
+  let game_state : game_state ref =
+    ref (Gameplay (blank_gameplay_state player_lst dictionary))
+  in
+
+  let* ui =
     LTerm_ui.create term (fun ui_terminal matrix ->
         draw ui_terminal matrix !game_state)
   in
