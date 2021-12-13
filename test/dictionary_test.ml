@@ -6,9 +6,8 @@ let test_length
     (file_name : string)
     (expected_output : int) : test =
   name >:: fun _ ->
-  assert_equal
-    (Hashtbl.length (dict_from_file file_name))
-    expected_output
+  let dict = dict_from_file file_name in
+  assert_equal (Hashtbl.length dict) expected_output
 
 let test_word_valid
     (name : string)
@@ -16,10 +15,9 @@ let test_word_valid
     (input_words : string list)
     (expected_output : bool) : test =
   name >:: fun _ ->
+  let dict = dict_from_file file_name in
   assert_equal
-    (List.for_all
-       (is_word_valid (dict_from_file file_name))
-       input_words)
+    (List.for_all (is_word_valid dict) input_words)
     expected_output
 
 let test_cases =
