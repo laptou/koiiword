@@ -447,6 +447,7 @@ let draw_board_tiles ctx pan tiles =
     (fun (position, letter) ->
       let row, col = get_tile_screen_position ctx pan position in
       LTerm_draw.draw_char ctx (row + 1) (col + 1)
+        ~style:{ LTerm_style.none with bold = Some true }
         (Zed_char.of_utf8 (String.make 1 letter));
       LTerm_draw.draw_char ctx (row + 1) (col + 2)
         (Zed_char.of_utf8 " "))
