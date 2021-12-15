@@ -7,10 +7,10 @@ type letter_deck = char list
    probability of drawing that vowel given it's frequency in the tiles*)
 let vowel_amounts : (float * char list) list =
   [
-    (12.1, [ 'U' ]);
+    (12.2, [ 'U' ]);
     (24.2, [ 'O' ]);
     (27.2, [ 'A'; 'I' ]);
-    (36.3, [ 'E' ]);
+    (36.4, [ 'E' ]);
   ]
 
 (* consonant_amounts is an association list that links each consonant to
@@ -21,7 +21,7 @@ let consonant_amounts : (float * char list) list =
     (6.2, [ 'Q'; 'Z'; 'J'; 'X'; 'K' ]);
     (12.5, [ 'F'; 'H'; 'V'; 'W'; 'Y'; 'B'; 'C'; 'M'; 'P' ]);
     (18.7, [ 'G' ]);
-    (25., [ 'D'; 'S'; 'L' ]);
+    (25.1, [ 'D'; 'S'; 'L' ]);
     (37.5, [ 'T'; 'R'; 'N' ]);
   ]
 
