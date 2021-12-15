@@ -61,17 +61,24 @@ let realistic_random_letter () =
   if Random.int 26 < 5 then get_random_letter vowel_amounts
   else get_random_letter consonant_amounts
 
+(** [has_vowel lst] returns true if [lst] has a vowel and false
+    otherwise*)
 let rec has_vowel = function
   | [] -> false
   | h :: t ->
       if List.mem h [ 'A'; 'E'; 'I'; 'O'; 'U' ] then true
       else has_vowel t
 
+(** [insert_vowel lst] replaces the first letter in [lst] with a
+    randomly chosen vowel.*)
 let insert_vowel lst =
   match lst with
   | [] -> []
   | _ :: t -> get_random_letter vowel_amounts :: t
 
+(** [ensure_vowel lst] ensures that the lst has at least one vowel. If
+    there is one vowel, [lst] is returned. Otherwise, an instance of
+    [lst] with the first letter replaced with a vowel is returned.*)
 let ensure_vowel lst = if has_vowel lst then lst else insert_vowel lst
 
 (** [consume_letter letter deck] removes the first instance of [letter]
