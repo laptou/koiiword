@@ -243,7 +243,7 @@ let loop_gameplay (evt : LTerm_event.t) (current_state : gameplay_state)
                   List.nth new_state.players
                     new_state.current_player_index
                 in
-                if current_player.points >= 10 then
+                if current_player.points >= 100 then
                   LoopResultUpdateState
                     (Victory { winner = current_player })
                 else
