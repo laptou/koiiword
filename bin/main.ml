@@ -400,6 +400,8 @@ let loop_title (evt : LTerm_event.t) (title_state : title_state) :
         (* if only one player remains, clear their name instead of
            deleting them *)
         | [ player ] -> [ { player with name = "" } ]
+        (* if two players are in the list, drop the last one*)
+        | [ current; _ ] -> [ current ]
         | current :: remainder ->
             current :: remove_last_player remainder
       in
