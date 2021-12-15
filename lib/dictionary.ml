@@ -2,6 +2,9 @@ type dictionary = (string, unit) Hashtbl.t
 (** type [dictionary] is the type for the HashTable containing the
     dictionary contents (string, string) [(word, word)] *)
 
+(* Solution derived from -
+   https://stackoverflow.com/questions/5774934/how-do-i-read-in-lines-from-a-text-file-in-ocaml/23456034
+   and modified for Hashtables*)
 (** [dict_from_file] takes in [file_name] string to give a dictionary of
     type [dictionary]*)
 let dict_from_file (file_name : string) : dictionary =
